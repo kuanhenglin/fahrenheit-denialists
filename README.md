@@ -1,3 +1,4 @@
 # CS 174A Project
 
-Jordan Lin, Joice He, and Aidan Cini :D
+**Team name:** The French Denialists <br>
+**Team members:** Jordan Lin, Joice He, and Aidan Cini :D
