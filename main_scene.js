@@ -8,6 +8,7 @@ import {defs, tiny} from './classes/common.js';
 // import {Text_Demo} from "./examples/text_demo.js"
 // import {Transforms_Sandbox} from "./examples/transforms_sandbox.js"
 import {Sandbox_Main} from "./scenes/sandbox_main.js";
+import {Sandbox_Shader} from "./scenes/sandbox_shader.js";
 
 // Pull these names into this module's scope for convenience:
 const {
@@ -26,22 +27,15 @@ const {
 // const Minimal_Webgl_Demo = defs.Minimal_Webgl_Demo;
 
 Object.assign(defs,
-  // {Axes_Viewer, Axes_Viewer_Test_Scene},
-  // {Inertia_Demo, Collision_Demo},
-  // {Many_Lights_Demo},
-  // {Obj_File_Demo},
-  // {Scene_To_Texture_Demo},
-  // {Surfaces_Demo},
-  // {Text_Demo},
-  // {Transforms_Sandbox},
   {Sandbox_Main},
+  {Sandbox_Shader},
 );
 
 // ******************** End extra step
 
 // (Can define Main_Scene's class here)
 
-const Main_Scene = Sandbox_Main;
+const Main_Scene = Sandbox_Shader;
 // const Additional_Scenes = [];
 
 export {Main_Scene, Canvas_Widget, Code_Widget, Text_Widget, defs}  // removed: Additional_Scenes
