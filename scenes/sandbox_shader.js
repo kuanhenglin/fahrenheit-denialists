@@ -11,13 +11,14 @@ export class Sandbox_Shader extends Scene {
 
     // load shape definitions onto the GPU
     this.shapes = {
-      sphere: new defs.Subdivision_Sphere(4),
+      sphere: new defs.Subdivision_Sphere(3),
+      sphere_flat: new (defs.Subdivision_Sphere.prototype.make_flat_shaded_version())(3),
       cube: new defs.Cube(),
     };
 
     // load material definitions onto the GPU
     this.materials = {
-      matte: new Material(new defs.Phong_Shader(),
+      normal: new Material(new defs.Phong_Shader(),
         {ambient: 0.2, diffusivity: 0.5, specular: 0.5, color: hex_color("#99bbdd")}
       ),
       trace: new Material(new Ray_Tracer(),
@@ -35,6 +36,31 @@ export class Sandbox_Shader extends Scene {
     this.key_triggered_button("Another button :D", ["Control", "1"], () => null);
   }
 
+
+  draw_shape(context, program_state, shape, transform, material, time) {
+    shape.draw(context, program_state, transform, material);
+
+    const shape_vertices_object_space = shape.arrays.position;
+    let shape_vertices_world_space = new Array(shape_vertices_object_space.length);
+    const shape_indices = shape.indices;
+
+    this.triangle_colors.push(... Array(Math.round(shape_indices.length / 3)).fill(material.color.to3()));
+
+    for (let i = 0; i < shape_vertices_object_space.length; ++i) {
+      shape_vertices_world_space[i] = transform.times(shape_vertices_object_space[i].to4(1.0)).to3();
+    }
+
+    for (let i = 0; i < shape_indices.length; ++i) {
+      this.triangle_vertices.push(shape_vertices_world_space[i]);
+    }
+
+    // if (time > 0.95 && time < 1.05) {
+    //   console.log(this.triangle_vertices);
+    //   console.log(this.triangle_colors);
+    // }
+  }
+
+
   display(context, program_state) {
     // display():  called once per frame of animation
     // set up the overall camera matrix, projection matrix, and lights
@@ -48,6 +74,10 @@ export class Sandbox_Shader extends Scene {
       Math.PI / 4, context.width / context.height, .1, 1000
     );
 
+    // initialize empty array of all shapes to be ray-traced
+    this.triangle_vertices = [];  // 2D array of column length of 3
+    this.triangle_colors = [];  // 1D array with length same as row length of triangle_vertices
+
     const light_position = vec4(5, 5, 5, 1);  // light source(s) (phong shader takes maximum of 2 sources)
     program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];  // position, color, size
 
@@ -55,11 +85,7 @@ export class Sandbox_Shader extends Scene {
 
     let identity_transform = Mat4.identity();
     let sphere_transform = identity_transform.times(Mat4.scale(3, 3, 3))
-    this.shapes.sphere.draw(context, program_state, sphere_transform, this.materials.trace);
-
-    if (time > 0.9 && time < 1.1) {
-      console.log(this.shapes.sphere.arrays.position);
-    }
+    this.draw_shape(context, program_state, this.shapes.sphere, sphere_transform, this.materials.trace, time);
   }
 }
 
@@ -86,6 +112,10 @@ class Ray_Tracer extends Shader {
          shader), then interpolated per-fragment, weighted by the pixel fragment's proximity to each of the 3 vertices
          (barycentric interpolation). */
       varying vec3 vertex_worldspace;
+      
+      const int MAX_TRIANGLES = 256;
+      vec3 triangle_vertices[MAX_TRIANGLES * 3];
+      vec3 triangle_colors[MAX_TRIANGLES];
     `;
   }
 
@@ -133,6 +163,7 @@ class Ray_Tracer extends Shader {
       void main() {
         // compute an initial (ambient) color:
         gl_FragColor = vec4( shape_color.xyz * ambient, shape_color.w );
+        // gl_FragColor = vec4( triangle_colors[0], 1.0 );
       }
       
       
@@ -218,6 +249,10 @@ class Ray_Tracer extends Shader {
     gl.uniform4fv(gpu.light_positions_or_vectors, light_positions_flattened);
     gl.uniform4fv(gpu.light_colors, light_colors_flattened);
     gl.uniform1fv(gpu.light_attenuation_factors, gpu_state.lights.map(l => l.attenuation));
+
+    // triangles
+    gl.uniform3fv(gpu.triangle_vertices, this.triangle_vertices);
+    gl.uniform3fv(gpu.triangle_colors, this.triangle_colors);
   }
 
   update_GPU(context, gpu_addresses, gpu_state, model_transform, material) {
