@@ -8,6 +8,8 @@ import {defs, tiny} from './classes/common.js';
 // import {Text_Demo} from "./examples/text_demo.js"
 // import {Transforms_Sandbox} from "./examples/transforms_sandbox.js"
 import {Sandbox_Main} from "./scenes/sandbox_main.js";
+import {Sandbox_Shader} from "./scenes/sandbox_shader.js";
+import {Sandbox_Physics} from "./scenes/sandbox_physics.js";
 
 // Pull these names into this module's scope for convenience:
 const {
@@ -26,15 +28,9 @@ const {
 // const Minimal_Webgl_Demo = defs.Minimal_Webgl_Demo;
 
 Object.assign(defs,
-  // {Axes_Viewer, Axes_Viewer_Test_Scene},
-  // {Inertia_Demo, Collision_Demo},
-  // {Many_Lights_Demo},
-  // {Obj_File_Demo},
-  // {Scene_To_Texture_Demo},
-  // {Surfaces_Demo},
-  // {Text_Demo},
-  // {Transforms_Sandbox},
   {Sandbox_Main},
+  {Sandbox_Shader},
+  {Sandbox_Physics},
 );
 
 // ******************** End extra step
