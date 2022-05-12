@@ -9,6 +9,7 @@ import {defs, tiny} from './classes/common.js';
 // import {Transforms_Sandbox} from "./examples/transforms_sandbox.js"
 import {Sandbox_Main} from "./scenes/sandbox_main.js";
 import {Sandbox_Shader} from "./scenes/sandbox_shader.js";
+import {Sandbox_Physics} from "./scenes/sandbox_physics.js";
 
 // Pull these names into this module's scope for convenience:
 const {
@@ -29,13 +30,14 @@ const {
 Object.assign(defs,
   {Sandbox_Main},
   {Sandbox_Shader},
+  {Sandbox_Physics},
 );
 
 // ******************** End extra step
 
 // (Can define Main_Scene's class here)
 
-const Main_Scene = Sandbox_Shader;
+const Main_Scene = Sandbox_Physics;
 // const Additional_Scenes = [];
 
 export {Main_Scene, Canvas_Widget, Code_Widget, Text_Widget, defs}  // removed: Additional_Scenes
