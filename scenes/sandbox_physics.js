@@ -1,61 +1,11 @@
-import {defs, tiny} from '../classes/common.js';
+import {defs, tiny} from "../classes/common.js";
+import {Object} from "../classes/physics.js";
+import {Model} from "../classes/shapes.js";
+
 
 const {  // load common classes to the current scope
   Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene,
 } = tiny;
-
-const GRAVITY = vec3(0.0, -9.81, 0.0);
-const DAMPEN = 0.70;
-const ERROR = 0.0001;
-
-
-class Object {
-  constructor(shape, material, position=null, velocity=null, acceleration=null) {
-    this.shape = shape;
-    this.material = material;
-    this.transform = Mat4.identity();
-
-    this.position = position? position : vec3(0.0, 0.0, 0.0);
-    this.velocity = velocity? velocity : vec3(0.0, 0.0, 0.0);
-    this.acceleration = acceleration? acceleration : GRAVITY;
-  }
-
-  draw(context, program_state, update=true,
-       delta_time=null, pre_transform=null, post_transform=null) {
-    if (update && delta_time < 0.05) {
-      this.update(delta_time, pre_transform, post_transform);
-    }
-    this.shape.draw(context, program_state, this.transform, this.material);
-  }
-
-  update(delta_time, pre_transform=null, post_transform=null) {
-    this.update_velocity(delta_time);
-    this.update_position(delta_time);
-    this.update_transform(pre_transform, post_transform);
-  }
-
-  update_position(delta_time) {
-    this.position = this.position.plus(this.velocity.times(delta_time));
-    if (this.position[1] < -5.0) {
-      this.velocity[1] = -0.9 * this.velocity[1];
-    }
-  }
-
-  update_velocity(delta_time) {
-    this.velocity = this.velocity.plus(this.acceleration.times(delta_time));
-  }
-
-  update_acceleration(acceleration=null) {
-    this.acceleration = acceleration? acceleration : GRAVITY;
-  }
-
-  update_transform(pre_transform=null, post_transform=null) {
-    this.transform = Mat4.identity()
-      .times(post_transform? post_transform : Mat4.identity())
-      .times(Mat4.translation(...this.position))
-      .times(pre_transform? pre_transform : Mat4.identity());
-  }
-}
 
 
 export class Sandbox_Physics extends Scene {
@@ -72,12 +22,28 @@ export class Sandbox_Physics extends Scene {
     // load material definitions onto the GPU
     this.materials = {
       normal: new Material(new defs.Phong_Shader(),
-        {ambient: 0.2, diffusivity: 0.5, specular: 0.5, color: hex_color("#aaaaaa")}
+        {ambient: 0.2, diffusivity: 0.5, specular: 0.5}  // default color
       ),
     }
 
     this.objects = [
-      new Object(this.shapes.sphere, this.materials.normal, vec3(0.0, 5.0, 0.0)),
+      new Object({
+        shape: new Model("../assets/teapot.obj"), material: this.materials.normal,
+        position: vec3(0.0, 5.0, 0.0),
+        color: hex_color("#88ee77"),
+      }),
+      new Object({
+        shape: this.shapes.cube, material: this.materials.normal,
+        position: vec3(-5.0, 5.0, -15.0),
+        scale: vec3(3.0, 2.0, 1.0), rotation: vec4(Math.PI / 6, 0.0, 1.0, 0.0),
+        color: hex_color("#88aaee"),
+      }),
+      new Object({
+        shape: this.shapes.sphere, material: this.materials.normal,
+        position: vec3(5.0, 7.5, -7.5),
+        scale: vec3(1.5, 1.0, 2.0), rotation: vec4(Math.PI / 6, 0.0, 1.0, 0.0),
+        color: hex_color("#ee7755"),
+      }),
     ]
 
     this.camera_initial_position = Mat4.look_at(vec3(0, 10, 20), vec3(0, 0, 0), vec3(0, 1, 0));
@@ -100,17 +66,20 @@ export class Sandbox_Physics extends Scene {
     }
 
     program_state.projection_transform = Mat4.perspective(  // perspective projection
-      Math.PI / 4, context.width / context.height, .1, 1000
+      Math.PI / 4, context.width / context.height, 0.1, 1000
     );
-
-    const light_position = vec4(5, 5, 5, 1);  // light source(s) (phong shader takes maximum of 2 sources)
-    program_state.lights = [new Light(light_position, color(1.0, 1.0, 1.0, 1.0), 1000)];  // position, color, size
 
     const time = program_state.animation_time / 1000;
     const delta_time = program_state.animation_delta_time / 1000;
 
+    const light_position = vec4(10, 5, 10, 1);  // light source(s) (phong shader takes maximum of 2 sources)
+    program_state.lights = [new Light(light_position, hex_color("#ffffff"), 1000)];  // position, color, size
+
     for (let i = 0; i < this.objects.length; ++i) {
-      this.objects[i].draw(context, program_state, true, delta_time);
+      this.objects[i].rotation = vec4((i + 1) * time, 1.0, 1.0, 1.0);
+      this.objects[i].draw_object({
+        context: context, program_state: program_state, delta_time: delta_time
+      });
     }
   }
 }
