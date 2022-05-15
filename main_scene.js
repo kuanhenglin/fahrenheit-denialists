@@ -37,7 +37,7 @@ Object.assign(defs,
 
 // (Can define Main_Scene's class here)
 
-const Main_Scene = Sandbox_Main;
+const Main_Scene = Sandbox_Physics;
 // const Additional_Scenes = [];
 
 export {Main_Scene, Canvas_Widget, Code_Widget, Text_Widget, defs}  // removed: Additional_Scenes

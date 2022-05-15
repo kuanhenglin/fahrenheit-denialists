@@ -86,6 +86,9 @@ export class Sandbox_Shader extends Scene {
     let identity_transform = Mat4.identity();
     let sphere_transform = identity_transform.times(Mat4.scale(3, 3, 3))
     this.draw_shape(context, program_state, this.shapes.sphere, sphere_transform, this.materials.trace, time);
+
+    let test = context.get_instance("assets/favicon.ico", false);
+    console.log(test);
   }
 }
 
@@ -112,10 +115,6 @@ class Ray_Tracer extends Shader {
          shader), then interpolated per-fragment, weighted by the pixel fragment's proximity to each of the 3 vertices
          (barycentric interpolation). */
       varying vec3 vertex_worldspace;
-      
-      const int MAX_TRIANGLES = 256;
-      vec3 triangle_vertices[MAX_TRIANGLES * 3];
-      vec3 triangle_colors[MAX_TRIANGLES];
     `;
   }
 
@@ -251,8 +250,6 @@ class Ray_Tracer extends Shader {
     gl.uniform1fv(gpu.light_attenuation_factors, gpu_state.lights.map(l => l.attenuation));
 
     // triangles
-    gl.uniform3fv(gpu.triangle_vertices, this.triangle_vertices);
-    gl.uniform3fv(gpu.triangle_colors, this.triangle_colors);
   }
 
   update_GPU(context, gpu_addresses, gpu_state, model_transform, material) {
