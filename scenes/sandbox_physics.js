@@ -1,5 +1,5 @@
 import {defs, tiny} from "../classes/common.js";
-import {Object} from "../classes/physics.js";
+import {Object, collision} from "../classes/physics.js";
 import {Model} from "../classes/shapes.js";
 
 
@@ -22,14 +22,14 @@ export class Sandbox_Physics extends Scene {
     // load material definitions onto the GPU
     this.materials = {
       normal: new Material(new defs.Phong_Shader(),
-        {ambient: 0.2, diffusivity: 0.5, specular: 0.5}  // default color
+        {ambient: 0.3, diffusivity: 0.5, specular: 0.5}  // default color
       ),
     }
 
     this.objects = [
       new Object({
         shape: new Model("../assets/teapot.obj"), material: this.materials.normal,
-        position: vec3(0.0, 5.0, 0.0),
+        position: vec3(0.0, 15.0, -15.0),
         color: hex_color("#88ee77"),
       }),
       new Object({
@@ -38,20 +38,31 @@ export class Sandbox_Physics extends Scene {
         scale: vec3(3.0, 2.0, 1.0), rotation: vec4(Math.PI / 6, 0.0, 1.0, 0.0),
         color: hex_color("#88aaee"),
       }),
+      // new Object({
+      //   shape: this.shapes.cube, material: this.materials.normal,
+      //   position: vec3(-2.0, 10.0, -15.0),
+      //   scale: vec3(1.0, 3.0, 2.0), rotation: vec4(Math.PI / 3, 1.0, 0.0, 1.0),
+      //   color: hex_color("#eecc55"),
+      // }),
       new Object({
         shape: this.shapes.sphere, material: this.materials.normal,
-        position: vec3(5.0, 7.5, -7.5),
-        scale: vec3(1.5, 1.0, 2.0), rotation: vec4(Math.PI / 6, 0.0, 1.0, 0.0),
+        position: vec3(-2.0, 10.0, -15.0),
+        scale: vec3(1.0, 3.0, 2.0), rotation: vec4(Math.PI / 2, 1.0, 0.0, 1.0),
         color: hex_color("#ee7755"),
       }),
     ]
 
-    this.camera_initial_position = Mat4.look_at(vec3(0, 10, 20), vec3(0, 0, 0), vec3(0, 1, 0));
+    this.camera_initial_position = Mat4.look_at(vec3(0, 10, 20), vec3(0, 5, 0), vec3(0, 1, 0));
+
+    this.bounding = true;
   }
 
   make_control_panel() {
     // draw scene buttons, setup actions and keyboard shortcuts, monitor live measurements.
-    this.key_triggered_button("Here is a button :)", ["Control", "0"], () => null);
+    this.key_triggered_button(
+      "Toggle bounding boxes", ["Control", "0"],
+      () => this.bounding = !this.bounding
+    );
     this.new_line();
     this.key_triggered_button("Another button :D", ["Control", "1"], () => null);
   }
@@ -75,10 +86,12 @@ export class Sandbox_Physics extends Scene {
     const light_position = vec4(10, 5, 10, 1);  // light source(s) (phong shader takes maximum of 2 sources)
     program_state.lights = [new Light(light_position, hex_color("#ffffff"), 1000)];  // position, color, size
 
+    collision(this.objects);  // collision detection (no resolution yet)
+
     for (let i = 0; i < this.objects.length; ++i) {
-      this.objects[i].rotation = vec4((i + 1) * time, 1.0, 1.0, 1.0);
+      this.objects[i].rotation = vec4((i + 1) * time, 1.0, 1.0, 1.0);  // random rotation for fun
       this.objects[i].draw_object({
-        context: context, program_state: program_state, delta_time: delta_time
+        context: context, program_state: program_state, delta_time: delta_time, draw_bounding: this.bounding
       });
     }
   }
