@@ -151,6 +151,7 @@ const Cube = defs.Cube =
                     // Shape (this one) at the specified matrix offset (square_transform):
                     Square.insert_transformed_copy_into(this, [], square_transform);
                 }
+
         }
     }
 
