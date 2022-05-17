@@ -13,23 +13,51 @@ const ERROR_SMALL = 0.0000001;
 const HUGE = 999999999.9;
 
 
+// ***** COLLISION *****
+
+// Collision detection: https://gamedev.stackexchange.com/a/60225 (separating axis theorem)
+// Collision axis overlap: https://stackoverflow.com/a/36035369
+// Collision normal: https://research.ncl.ac.uk/game/mastersdegree/gametechnologies/physicstutorials/4collisiondetection/Physics%20-%20Collision%20Detection.pdf
+// Collision resolution: http://www.cs.uu.nl/docs/vakken/mgp/2014-2015/Lecture%207%20-%20Collision%20Resolution.pdf
+
 // collision function which is called by the main scene, takes in array of objects
+// note that the current way of checking collision is slow
 export function collision(objects) {
-  // generate all 2-combinations of objects (pair-wise collision check)
-  // this is not efficient at all, but it will (have to) do now
-  let indices = [...Array(objects.length).keys()];
-  let object_pairs = indices.flatMap(
-    (v, i) => indices.slice(i+1).map(w => [v, w])
-  );
-  // the current way that collision is shown is via console.log
-  let collisions = [];
-  for (let i = 0; i < object_pairs.length; ++i) {
-    let is_collision_pair = is_colliding(objects[object_pairs[i][0]], objects[object_pairs[i][1]]);
-    collisions.push(`${object_pairs[i]}: ${is_collision_pair}`);
+  for (let i = 0; i < objects.length; ++i) {
+    for (let j = i + 1; j < objects.length; ++j) {
+      let collision_normal = collision_detection(objects[i], objects[j]);
+      if (collision_normal) {
+        collision_resolution(objects[i], objects[j], collision_normal);
+      }
+    }
   }
-  console.log(collisions.join("\t"));
 }
 
+
+// ***** COLLISION DETECTION *****
+
+// uses the separating axis theorem to check for overlap
+function collision_detection(object_1, object_2) {
+  // get face normal vectors of the bounding boxes of both shapes
+  let normals = object_1.bounding.normals.concat(object_2.bounding.normals);
+  // note that the bounding normals and vertices are already in world space (check Object class for how it is done)
+
+  let overlap_minimum = null;
+  for (let i = 0; i < normals.length; ++i) {
+    // for each normal, project the vertices of the bounding boxes of object 1 and 2 to said normal
+    let object_1_range = separating_axis_projection(normals[i], object_1.bounding.vertices);
+    let object_2_range = separating_axis_projection(normals[i], object_2.bounding.vertices);
+    // if the projected minimum and maximum ranges are overlapping for ALL normals, then the two objects are colliding
+    let overlap = get_overlap(object_1_range, object_2_range);
+    if (overlap <= 0) {  // no overlap between some axis
+      return null;
+    }
+    if (!overlap_minimum || overlap < overlap_minimum.overlap) {
+      overlap_minimum = {overlap: overlap, normal: normals[i]};
+    }
+  }
+  return overlap_minimum
+}
 
 // uses separating axis theorem (SAT) projection
 function separating_axis_projection(normal, vertices) {
@@ -42,38 +70,11 @@ function separating_axis_projection(normal, vertices) {
   return [minimum, maximum];
 }
 
-
-// helper function for is_overlap
-function is_between(range_1, range_2) {
-  return (range_2[0] <= range_1[0] && range_1[0] <= range_2[1]) ||
-         (range_2[0] <= range_1[1] && range_1[1] <= range_2[1]);
+// with the SAT projection ranges, compute the amount that two object ranges are overlapping
+// get_overlap() returns a non-positive number if the two objects are not overlapping
+function get_overlap(object_1_range, object_2_range) {
+  return Math.min(object_1_range[1], object_2_range[1]) - Math.max(object_1_range[0], object_2_range[0]);
 }
-
-
-// with the SAT projection ranges, check if two object ranges are overlapping
-function is_overlap(object_1_range, object_2_range) {
-  return is_between(object_1_range, object_2_range) || is_between(object_2_range, object_1_range);
-}
-
-
-// uses the separating axis theorem to check for overlap
-function is_colliding(object_1, object_2) {
-  // get face normal vectors of the bounding boxes of both shapes
-  let normals = object_1.bounding.normals.concat(object_2.bounding.normals);
-  // note that the bounding normals and vertices are already in world space (check Object class for how it is done)
-
-  for (let i = 0; i < normals.length; ++i) {
-    // for each normal, project the vertices of the bounding boxes of object 1 and 2 to said normal
-    let object_1_range = separating_axis_projection(normals[i], object_1.bounding.vertices);
-    let object_2_range = separating_axis_projection(normals[i], object_2.bounding.vertices);
-    // if the projected minimum and maximum ranges are overlapping for ALL normals, then the two objects are colliding
-    if (!is_overlap(object_1_range, object_2_range)) {
-      return false;
-    }
-  }
-  return true
-}
-
 
 // vector equals with a small tolerance (magnitude of ERROR_SMALL)
 function vector_equals(vector_1, vector_2) {
@@ -81,10 +82,24 @@ function vector_equals(vector_1, vector_2) {
 }
 
 
+// ***** COLLISION RESOLUTION *****
+
+function collision_resolution(object_1, object_2, collision_normal) {
+  let [mass_inverse_1, mass_inverse_2] = [1 / object_1.mass, 1 / object_2.mass];
+  let restitution = Math.min(object_1.restitution, object_2.restitution);
+  let impulse = -(1 + restitution) * object_1.velocity.minus(object_2.velocity).dot(collision_normal.normal) /
+    (mass_inverse_1 + mass_inverse_2);
+  object_1.velocity = object_1.velocity.plus(collision_normal.normal.times(impulse * mass_inverse_1));
+  object_2.velocity = object_2.velocity.minus(collision_normal.normal.times(impulse * mass_inverse_2));
+}
+
+// ***** CLASSES *****
+
 export class Object {
-  constructor({ shape, material, bounding_exact=false,
+  constructor({ shape, material, bounding_type,
                 position, velocity, acceleration,
-                scale, rotation,
+                rotation, rotation_velocity,
+                scale, mass, restitution,
                 color }={}) {
     this.shape = shape;
     this.material = material;
@@ -94,15 +109,23 @@ export class Object {
     this.velocity = velocity? velocity : vec3(0.0, 0.0, 0.0);
     this.acceleration = acceleration? acceleration : GRAVITY;
 
+    this.rotation = rotation? rotation.slice(1, 4).normalized().times(rotation[0]) : vec3(0.0, 0.0, 0.0);
+    this.rotation_velocity = rotation_velocity? rotation_velocity : vec3(0.0, 0.0, 0.0);
+
     this.scale = scale? scale : vec3(1.0, 1.0, 1.0);
-    this.rotation = rotation? rotation : vec4(0.0, 1.0, 0.0, 0.0);
+    this.mass = mass? mass : 1.0;  // arbitrary unit
+    this.restitution = restitution? restitution : 0.9;  // (inelastic) 0 <= restitution <= 1 (elastic)
 
     this.color = color? color : hex_color("#aaaaaa");
 
-    // true if bounding box is exactly the shape itself, should only be true for rectangular prisms (Cube)
-    this.bounding_exact = bounding_exact? bounding_exact : this.shape instanceof defs.Cube;
+    // the following are descriptions of each of the bounding types
+    // EXACT: follows the geometry of the object exactly, currently only works for rectangular prisms
+    // MODEL: rectangular prism initialized in model space, rotates with model
+    // AXIS_ALIGNED: rectangular prisms re-computed every update, always parallel to axis (no rotation)
+    this.bounding_type = bounding_type? bounding_type : this.shape instanceof defs.Cube? "EXACT" : "MODEL";
     this.bounding = {
       // transformation matrix for bounding box (same as this.transform for rectangular prisms)
+      transform_base: this.get_axis_aligned_bounding(),
       transform: Mat4.identity(),
       vertices: [],  // vertices for bounding box (world space)
       normals: [],  // normals for bounding box (world space), directionally unique (no parallel normals)
@@ -141,8 +164,9 @@ export class Object {
   update_position(delta_time) {
     this.position = this.position.plus(this.velocity.times(delta_time));
     if (this.position[1] < -5.0) {  // temporary bounce
-      this.velocity[1] = -0.9 * this.velocity[1];
+      this.velocity[1] = -this.restitution * this.velocity[1];
     }
+    this.rotation = this.rotation.plus(this.rotation_velocity.times(delta_time));
   }
 
   update_velocity(delta_time) {
@@ -150,38 +174,26 @@ export class Object {
   }
 
   update_transform(pre_transform=null, post_transform=null) {
+    let rotation_magnitude = this.rotation.norm();
+    let rotation_axis = rotation_magnitude === 0.0? vec3(1.0, 1.0, 1.0) : this.rotation;
+
     this.transform = Mat4.identity()
       .times(post_transform? post_transform : Mat4.identity())
       .times(Mat4.translation(...this.position))
       .times(pre_transform? pre_transform : Mat4.identity())
-      .times(Mat4.rotation(...this.rotation))
+      .times(Mat4.rotation(rotation_magnitude, ...rotation_axis))
       .times(Mat4.scale(...this.scale));
   }
 
   // ***** COLLISION *****
 
   update_bounding() {
-    if (this.bounding_exact) {  // we assume this.bounding_exact true only if shape is rectangular prism
+    if (this.bounding_type === "EXACT" || this.shape.arrays.position.length === 0) {
       this.bounding.transform = this.transform;
+    } else if (this.bounding_type === "MODEL") {
+      this.bounding.transform = this.transform.times(this.get_axis_aligned_bounding(true));
     } else {
-      // convert vertices of shape from object to world space
-      let vertices = this.shape.arrays.position.map(vertex => this.transform.times(vertex.to4(1.0)).to3());
-      let length = vertices.length;
-      // separate x, y, and z vertex coordinates, for loop slightly faster than using .map()
-      let vertices_x = new Array(length), vertices_y = new Array(length), vertices_z = new Array(length);
-      for (let i = 0; i < length; ++i) {
-        [vertices_x[i], vertices_y[i], vertices_z[i]] = [vertices[i][0], vertices[i][1], vertices[i][2]];
-      }
-
-      // find minimum and maximum x, y, and z
-      let minimum_position = vec3(Math.min(...vertices_x), Math.min(...vertices_y), Math.min(...vertices_z));
-      let maximum_position = vec3(Math.max(...vertices_x), Math.max(...vertices_y), Math.max(...vertices_z));
-
-      let scale = maximum_position.minus(minimum_position).times(0.5);
-      let position = maximum_position.plus(minimum_position).times(0.5);
-      this.bounding.transform = Mat4.identity()  // get bounding box transformation matrix
-        .times(Mat4.translation(...position))
-        .times(Mat4.scale(...scale));
+      this.bounding.transform = this.get_axis_aligned_bounding();
     }
 
     // compute list of (non-parallel) world-space vertices and normals for the bounding box
@@ -200,13 +212,36 @@ export class Object {
     }
   }
 
-  add_no_parallel(array, vector) {  // array and vector type must match, vec3 or vec4
+  get_axis_aligned_bounding(object_space=false) {
+    // convert vertices of shape from object to world space
+    let vertices = this.shape.arrays.position;
+    if (!object_space) {
+      vertices = vertices.map(vertex => this.transform.times(vertex.to4(1.0)).to3());
+    }
+    let length = vertices.length;
+    // separate x, y, and z vertex coordinates, for loop slightly faster than using .map()
+    let vertices_x = new Array(length), vertices_y = new Array(length), vertices_z = new Array(length);
+    for (let i = 0; i < length; ++i) {
+      [vertices_x[i], vertices_y[i], vertices_z[i]] = [vertices[i][0], vertices[i][1], vertices[i][2]];
+    }
+
+    // find minimum and maximum x, y, and z
+    let minimum_position = vec3(Math.min(...vertices_x), Math.min(...vertices_y), Math.min(...vertices_z));
+    let maximum_position = vec3(Math.max(...vertices_x), Math.max(...vertices_y), Math.max(...vertices_z));
+
+    let scale = maximum_position.minus(minimum_position).times(0.5);
+    let position = maximum_position.plus(minimum_position).times(0.5);
+
+    return Mat4.translation(...position).times(Mat4.scale(...scale));
+  }
+
+  add_no_parallel(array, vector, normalize=true) {  // array and vector type must match, vec3 or vec4
     for (let i = 0; i < array.length; ++i) {
       if (vector_equals(array[i], vector) || vector_equals(array[i], vector.times(-1.0))) {
         return;
       }
     }
-    array.push(vector);
+    array.push(normalize? vector.normalized() : vector);
   }
 }
 

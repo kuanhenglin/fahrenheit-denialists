@@ -17,6 +17,7 @@ export class Sandbox_Physics extends Scene {
     this.shapes = {
       sphere: new defs.Subdivision_Sphere(4),
       cube: new defs.Cube(),
+      teapot: new Model("../assets/teapot.obj"),
     };
 
     // load material definitions onto the GPU
@@ -28,25 +29,25 @@ export class Sandbox_Physics extends Scene {
 
     this.objects = [
       new Object({
-        shape: new Model("../assets/teapot.obj"), material: this.materials.normal,
-        position: vec3(0.0, 15.0, -15.0),
+        shape: this.shapes.teapot, material: this.materials.normal,
+        position: vec3(10.0, 15.0, -15.0), velocity: vec3(-4.0, 0.0, 0.0),
         color: hex_color("#88ee77"),
       }),
       new Object({
         shape: this.shapes.cube, material: this.materials.normal,
-        position: vec3(-5.0, 5.0, -15.0),
+        position: vec3(-5.0, 10.0, -15.0), velocity: vec3(5.0, 0.0, 0.0),
         scale: vec3(3.0, 2.0, 1.0), rotation: vec4(Math.PI / 6, 0.0, 1.0, 0.0),
         color: hex_color("#88aaee"),
       }),
       // new Object({
       //   shape: this.shapes.cube, material: this.materials.normal,
-      //   position: vec3(-2.0, 10.0, -15.0),
+      //   position: vec3(-2.0, 0.0, -15.0),
       //   scale: vec3(1.0, 3.0, 2.0), rotation: vec4(Math.PI / 3, 1.0, 0.0, 1.0),
       //   color: hex_color("#eecc55"),
       // }),
       new Object({
         shape: this.shapes.sphere, material: this.materials.normal,
-        position: vec3(-2.0, 10.0, -15.0),
+        position: vec3(0.0, 5.0, -15.0), velocity: vec3(0.0, 5.0, 0.0),
         scale: vec3(1.0, 3.0, 2.0), rotation: vec4(Math.PI / 2, 1.0, 0.0, 1.0),
         color: hex_color("#ee7755"),
       }),
@@ -89,7 +90,7 @@ export class Sandbox_Physics extends Scene {
     collision(this.objects);  // collision detection (no resolution yet)
 
     for (let i = 0; i < this.objects.length; ++i) {
-      this.objects[i].rotation = vec4((i + 1) * time, 1.0, 1.0, 1.0);  // random rotation for fun
+      this.objects[i].rotation_velocity = vec3(i + 1, i + 1, i + 1).times(0.5);  // random rotation for fun
       this.objects[i].draw_object({
         context: context, program_state: program_state, delta_time: delta_time, draw_bounding: this.bounding
       });
