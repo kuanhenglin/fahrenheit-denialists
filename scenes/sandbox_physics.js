@@ -23,49 +23,102 @@ export class Sandbox_Physics extends Scene {
     // load material definitions onto the GPU
     this.materials = {
       normal: new Material(new defs.Phong_Shader(),
-        {ambient: 0.3, diffusivity: 0.5, specular: 0.5}  // default color
+        {ambient: 0.2, diffusivity: 0.8, specular: 0.3}  // default color
       ),
     }
 
     this.objects = [
       new Object({
         shape: this.shapes.teapot, material: this.materials.normal,
-        position: vec3(10.0, 15.0, -15.0), velocity: vec3(-4.0, 0.0, 0.0),
+        position: vec3(10.0, 5.0, 0.0), velocity: vec3(-5.0, 0.0, -2.0),
+        scale: vec3(1.5, 1.5, 1.5), rotation: vec4(-Math.PI / 2, 1.0, 0.0, 0.0),
+        bounding_scale: vec3(0.9, 0.9, 0.9),
         color: hex_color("#88ee77"),
       }),
       new Object({
         shape: this.shapes.cube, material: this.materials.normal,
-        position: vec3(-5.0, 10.0, -15.0), velocity: vec3(5.0, 0.0, 0.0),
+        position: vec3(-5.0, 10.0, 0.0), velocity: vec3(5.0, 0.0, 0.0),
         scale: vec3(3.0, 2.0, 1.0), rotation: vec4(Math.PI / 6, 0.0, 1.0, 0.0),
         color: hex_color("#88aaee"),
       }),
-      // new Object({
-      //   shape: this.shapes.cube, material: this.materials.normal,
-      //   position: vec3(-2.0, 0.0, -15.0),
-      //   scale: vec3(1.0, 3.0, 2.0), rotation: vec4(Math.PI / 3, 1.0, 0.0, 1.0),
-      //   color: hex_color("#eecc55"),
-      // }),
       new Object({
         shape: this.shapes.sphere, material: this.materials.normal,
-        position: vec3(0.0, 5.0, -15.0), velocity: vec3(0.0, 5.0, 0.0),
+        position: vec3(0.0, 5.0, 0.0), velocity: vec3(0.0, 5.0, 0.0),
         scale: vec3(1.0, 3.0, 2.0), rotation: vec4(Math.PI / 2, 1.0, 0.0, 1.0),
+        bounding_scale: vec3(0.95, 0.95, 0.95),
         color: hex_color("#ee7755"),
       }),
     ]
 
-    this.camera_initial_position = Mat4.look_at(vec3(0, 10, 20), vec3(0, 5, 0), vec3(0, 1, 0));
+    this.walls = [];
+    this.box = {scale: vec3(15.0, 10.0, 15.0), thickness: vec3(0.5, 0.5, 0.5)};
+    this.initialize_walls(this.box.scale, this.box.thickness, true);
 
-    this.bounding = true;
+    this.camera_initial_position = Mat4.look_at(vec3(25, 15, 55), vec3(-2.5, -5.0, 0), vec3(0, 1, 0));
+
+    this.bounding = false;
+
+    this.pause = false;
+    this.time_elapsed = 0.0;
   }
 
   make_control_panel() {
     // draw scene buttons, setup actions and keyboard shortcuts, monitor live measurements.
-    this.key_triggered_button(
-      "Toggle bounding boxes", ["Control", "0"],
-      () => this.bounding = !this.bounding
+    this.live_string(
+      box => box.textContent = "Time elapsed: " + this.time_elapsed.toFixed(2) + "s"
     );
     this.new_line();
-    this.key_triggered_button("Another button :D", ["Control", "1"], () => null);
+    this.key_triggered_button(
+      "Toggle pause", ["p"],
+      () => this.pause = !this.pause
+    );
+    this.new_line();
+    this.key_triggered_button(
+      "Toggle bounding boxes", ["b"],
+      () => this.bounding = !this.bounding
+    );
+  }
+
+  initialize_walls(scale, thickness, add_to_objects=true) {
+    let offset = scale.plus(thickness);
+    let color = hex_color("#cccccc");
+
+    this.walls = [
+      // floor
+      new Object({
+        shape: this.shapes.cube, material: this.materials.normal, mass: -1.0,
+        position: vec3(0.0, -offset[1], 0.0), scale: vec3(scale[0], thickness[1], scale[2]),
+        gravity: vec3(0.0, 0.0, 0.0), wall: true, color: color,
+      }),
+      // left
+      new Object({
+        shape: this.shapes.cube, material: this.materials.normal, mass: -1.0,
+        position: vec3(-offset[0], 0.0, 0.0), scale: vec3(thickness[0], scale[1], scale[2]),
+        gravity: vec3(0.0, 0.0, 0.0), wall: true, color: color,
+      }),
+      // right
+      new Object({
+        shape: this.shapes.cube, material: this.materials.normal, draw: false, mass: -1.0,
+        position: vec3(offset[0], 0.0, 0.0), scale: vec3(thickness[0], scale[1], scale[2]),
+        gravity: vec3(0.0, 0.0, 0.0), wall: true, color: color,
+      }),
+      // back
+      new Object({
+        shape: this.shapes.cube, material: this.materials.normal, mass: -1.0,
+        position: vec3(0.0, 0.0, -offset[2]), scale: vec3(scale[0], scale[1], thickness[2]),
+        gravity: vec3(0.0, 0.0, 0.0), wall: true, color: color,
+      }),
+      // front
+      new Object({
+        shape: this.shapes.cube, material: this.materials.normal, draw: false, mass: -1.0,
+        position: vec3(0.0, 0.0, offset[2]), scale: vec3(scale[0], scale[1], thickness[2]),
+        gravity: vec3(0.0, 0.0, 0.0), wall: true, color: color,
+      }),
+    ]
+
+    if (add_to_objects) {
+      this.objects = this.objects.concat(this.walls);
+    }
   }
 
   display(context, program_state) {
@@ -82,17 +135,20 @@ export class Sandbox_Physics extends Scene {
     );
 
     const time = program_state.animation_time / 1000;
-    const delta_time = program_state.animation_delta_time / 1000;
+    const delta_time = this.pause? 0.0 : program_state.animation_delta_time / 1000;
+    this.time_elapsed += delta_time;
 
-    const light_position = vec4(10, 5, 10, 1);  // light source(s) (phong shader takes maximum of 2 sources)
+    // light source(s) (phong shader takes maximum of 2 sources)
+    const light_position = vec4(-0.75 * this.box.scale[0], 0.75 * this.box.scale[1], 0.75 * this.box.scale[2], 1.0);
     program_state.lights = [new Light(light_position, hex_color("#ffffff"), 1000)];  // position, color, size
 
     collision(this.objects);  // collision detection (no resolution yet)
 
     for (let i = 0; i < this.objects.length; ++i) {
-      this.objects[i].rotation_velocity = vec3(i + 1, i + 1, i + 1).times(0.5);  // random rotation for fun
+      // this.objects[i].rotation_velocity = vec3(i + 1, i + 1, i + 1).times(0.25);  // random rotation for fun
       this.objects[i].draw_object({
-        context: context, program_state: program_state, delta_time: delta_time, draw_bounding: this.bounding
+        context: context, program_state: program_state,
+        delta_time: delta_time, draw_bounding: this.bounding
       });
     }
   }
