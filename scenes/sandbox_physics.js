@@ -8,6 +8,11 @@ const {  // load common classes to the current scope
 } = tiny;
 
 
+function array_random(minimum, maximum, length) {
+  return Array.from(Array(length)).map((_, i) => (Math.random() * (maximum[i] - minimum[i])) + minimum[i]);
+}
+
+
 export class Sandbox_Physics extends Scene {
   constructor() {
     // constructor(): populate initial values like Shapes and Materials
@@ -27,34 +32,44 @@ export class Sandbox_Physics extends Scene {
       ),
     }
 
+    this.walls = [];
+    this.box = {scale: vec3(15.0, 10.0, 15.0), thickness: vec3(0.5, 0.5, 0.5)};
+
     this.objects = [
       new Object({
         shape: this.shapes.teapot, material: this.materials.normal,
-        position: vec3(10.0, 5.0, 0.0), velocity: vec3(-5.0, 0.0, -2.0),
-        scale: vec3(1.5, 1.5, 1.5), rotation: vec4(-Math.PI / 2, 1.0, 0.0, 0.0),
+        position: vec3(...array_random(this.box.scale.times(-0.75), this.box.scale.times(0.75), 3)),
+        velocity: vec3(...array_random(vec3(-10.0, -10.0, -10.0), vec3(10.0, 10.0, 10.0), 3)),
+        scale: vec3(1.5, 1.5, 1.5), rotation: vec3(-Math.PI / 2, 0.0, 0.0),
         bounding_scale: vec3(0.9, 0.9, 0.9),
         color: hex_color("#88ee77"),
       }),
       new Object({
-        shape: this.shapes.cube, material: this.materials.normal,
-        position: vec3(-5.0, 10.0, 0.0), velocity: vec3(5.0, 0.0, 0.0),
-        scale: vec3(3.0, 2.0, 1.0), rotation: vec4(Math.PI / 6, 0.0, 1.0, 0.0),
+        shape: this.shapes.cube, material: this.materials.normal, mass: 5.0,
+        position: vec3(...array_random(this.box.scale.times(-0.75), this.box.scale.times(0.75), 3)),
+        velocity: vec3(...array_random(vec3(-10.0, -10.0, -10.0), vec3(10.0, 10.0, 10.0), 3)),
+        scale: vec3(3.0, 2.0, 1.0), rotation: vec3(0.0, Math.PI / 6, 0.0),
         color: hex_color("#88aaee"),
       }),
       new Object({
-        shape: this.shapes.sphere, material: this.materials.normal,
-        position: vec3(0.0, 5.0, 0.0), velocity: vec3(0.0, 5.0, 0.0),
-        scale: vec3(1.0, 3.0, 2.0), rotation: vec4(Math.PI / 2, 1.0, 0.0, 1.0),
+        shape: this.shapes.sphere, material: this.materials.normal, mass: 2.0,
+        position: vec3(...array_random(this.box.scale.times(-0.75), this.box.scale.times(0.75), 3)),
+        velocity: vec3(...array_random(vec3(-10.0, -10.0, -10.0), vec3(10.0, 10.0, 10.0), 3)),
+        scale: vec3(1.0, 3.0, 2.0), rotation: vec3(Math.PI / 2, 0.0, Math.PI / 2),
         bounding_scale: vec3(0.95, 0.95, 0.95),
         color: hex_color("#ee7755"),
       }),
+      new Object({
+        shape: this.shapes.cube, material: this.materials.normal, mass: -1.0,
+        position: vec3(0.0, -5.0, 0.0), scale: vec3(20.0, 5.0, 0.5), rotation_velocity: vec3(0.0, 1.0, 0.0),
+        bounding_scale: vec3(0.95, 0.95, 0.95),
+        gravity: vec3(0.0, 0.0, 0.0), wall: true, color: hex_color("cccccc"),
+      }),
     ]
 
-    this.walls = [];
-    this.box = {scale: vec3(15.0, 10.0, 15.0), thickness: vec3(0.5, 0.5, 0.5)};
     this.initialize_walls(this.box.scale, this.box.thickness, true);
 
-    this.camera_initial_position = Mat4.look_at(vec3(25, 15, 55), vec3(-2.5, -5.0, 0), vec3(0, 1, 0));
+    this.camera_initial_position = Mat4.look_at(vec3(20, 15, 50), vec3(-2.5, -5.0, 0), vec3(0, 1, 0));
 
     this.bounding = false;
 
@@ -88,6 +103,12 @@ export class Sandbox_Physics extends Scene {
       new Object({
         shape: this.shapes.cube, material: this.materials.normal, mass: -1.0,
         position: vec3(0.0, -offset[1], 0.0), scale: vec3(scale[0], thickness[1], scale[2]),
+        gravity: vec3(0.0, 0.0, 0.0), wall: true, color: color,
+      }),
+      // ceiling
+      new Object({
+        shape: this.shapes.cube, material: this.materials.normal, draw: false, mass: -1.0,
+        position: vec3(0.0, offset[1], 0.0), scale: vec3(scale[0], thickness[1], scale[2]),
         gravity: vec3(0.0, 0.0, 0.0), wall: true, color: color,
       }),
       // left

@@ -92,7 +92,8 @@ function vector_equals(vector_1, vector_2) {
 function collision_resolution(object_1, object_2, collision_normal) {
   let mass_inverse_1 = object_1.mass === -1.0? 0.0 : 1 / object_1.mass;  // mass is infinity
   let mass_inverse_2 = object_2.mass === -1.0? 0.0 : 1 / object_2.mass;
-  let restitution = Math.min(object_1.restitution, object_2.restitution);
+  let friction_coefficient = Math.max(object_1.friction_coefficient, object_2.friction_coefficient);
+    let restitution = Math.min(object_1.restitution, object_2.restitution);
 
   let object_position = object_2.position.minus(object_1.position);
   let normal = collision_normal.normal;
@@ -100,10 +101,13 @@ function collision_resolution(object_1, object_2, collision_normal) {
     normal = normal.times(-1.0);
   }
 
-  let impulse = -(1 + restitution) * object_1.velocity.minus(object_2.velocity).dot(normal) /
-    (mass_inverse_1 + mass_inverse_2);
-  let impulse_1 = normal.times(impulse * mass_inverse_1);
-  let impulse_2 = normal.times(impulse * mass_inverse_2);
+  let object_velocity = object_1.velocity.minus(object_2.velocity);
+  let friction_1 = object_1.velocity.minus(normal.times(object_1.velocity.dot(normal)));
+  let friction_2 = object_2.velocity.minus(normal.times(object_2.velocity.dot(normal)));
+
+  let impulse = -(1 + restitution) * object_velocity.dot(normal) / (mass_inverse_1 + mass_inverse_2);
+  let impulse_1 = normal.plus(friction_1.times(friction_coefficient)).times(impulse * mass_inverse_1);
+  let impulse_2 = normal.plus(friction_2.times(friction_coefficient)).times(impulse * mass_inverse_2);
 
   object_1.velocity = object_1.velocity.plus(impulse_1);
   object_2.velocity = object_2.velocity.minus(impulse_2);
@@ -116,9 +120,6 @@ function collision_resolution(object_1, object_2, collision_normal) {
     object_1.position = object_1.position.minus(normal.times(0.5 * collision_normal.overlap));
     object_2.position = object_2.position.plus(normal.times(0.5 * collision_normal.overlap));
   }
-
-
-
 }
 
 
@@ -129,7 +130,7 @@ export class Object {
                 bounding_type, bounding_scale,
                 position, velocity, acceleration,
                 rotation, rotation_velocity,
-                scale, mass, restitution,
+                scale, mass, friction_coefficient, restitution,
                 gravity, wall,
                 color }={}) {
     this.shape = shape;
@@ -145,12 +146,14 @@ export class Object {
     this.velocity = velocity !== undefined? velocity : vec3(0.0, 0.0, 0.0);
     this.acceleration = acceleration !== undefined? acceleration.plus(this.gravity) : this.gravity;
 
-    this.rotation = rotation !== undefined? rotation.slice(1, 4).normalized().times(rotation[0]) : vec3(0.0, 0.0, 0.0);
+    this.rotation = rotation !== undefined? rotation : vec3(0.0, 0.0, 0.0);
     this.rotation_velocity = rotation_velocity !== undefined? rotation_velocity : vec3(0.0, 0.0, 0.0);
 
     this.scale = scale !== undefined? scale : vec3(1.0, 1.0, 1.0);
     this.mass = mass !== undefined? mass : 1.0;  // arbitrary unit, mass is infinity if value is -1.0
-    this.restitution = restitution !== undefined? restitution : 0.9;  // (inelastic) 0 <= restitution <= 1 (elastic)
+
+    this.friction_coefficient = friction_coefficient !== undefined? friction_coefficient : 0.03;
+    this.restitution = restitution !== undefined? restitution : 0.8;  // (inelastic) 0 <= restitution <= 1 (elastic)
 
     this.color = color !== undefined? color : hex_color("#aaaaaa");
 
