@@ -23,6 +23,7 @@ export class Sandbox_Physics extends Scene {
       sphere: new defs.Subdivision_Sphere(4),
       cube: new defs.Cube(),
       teapot: new Model("../assets/teapot.obj"),
+      miku: new Model("../assets/miku.obj"),
     };
 
     // load material definitions onto the GPU
@@ -44,6 +45,16 @@ export class Sandbox_Physics extends Scene {
         bounding_scale: vec3(0.9, 0.9, 0.9),
         color: hex_color("#88ee77"),
       }),
+
+      new Object({
+        shape: this.shapes.miku, material: this.materials.normal,
+        position: vec3(...array_random(this.box.scale.times(-0.75), this.box.scale.times(0.75), 3)),
+        velocity: vec3(...array_random(vec3(-10.0, -10.0, -10.0), vec3(10.0, 10.0, 10.0), 3)),
+        scale: vec3(3, 3, 3),
+        bounding_scale: vec3(0.9, 1, 0.9),
+        color: hex_color("#8ceeed"),
+      }),
+
       new Object({
         shape: this.shapes.cube, material: this.materials.normal, mass: 5.0,
         position: vec3(...array_random(this.box.scale.times(-0.75), this.box.scale.times(0.75), 3)),
@@ -73,7 +84,7 @@ export class Sandbox_Physics extends Scene {
 
     this.bounding = false;
 
-    this.pause = false;
+    this.pause = true;
     this.time_elapsed = 0.0;
   }
 
