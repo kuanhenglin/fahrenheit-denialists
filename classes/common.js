@@ -890,12 +890,12 @@ const Movement_Controls = defs.Movement_Controls =
 
             const speed_controls = this.control_panel.appendChild(document.createElement("span"));
             // speed_controls.style.margin = "30px";
-            this.key_triggered_button("-", ["o"], () =>
+            this.key_triggered_button("-", ["i"], () =>
                 this.speed_multiplier /= 1.2, undefined, undefined, undefined, speed_controls);
             this.live_string(box => {
                 box.textContent = "Speed: " + this.speed_multiplier.toFixed(2)
             }, speed_controls);
-            this.key_triggered_button("+", ["p"], () =>
+            this.key_triggered_button("+", ["o"], () =>
                 this.speed_multiplier *= 1.2, undefined, undefined, undefined, speed_controls);
             this.new_line();
             this.key_triggered_button("Roll left", [","], () => this.roll = 1, undefined, () => this.roll = 0);

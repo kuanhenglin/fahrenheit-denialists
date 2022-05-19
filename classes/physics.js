@@ -25,9 +25,14 @@ const HUGE = 999999999.9;
 export function collision(objects) {
   for (let i = 0; i < objects.length; ++i) {
     for (let j = i + 1; j < objects.length; ++j) {
-      let collision_normal = collision_detection(objects[i], objects[j]);
-      if (collision_normal) {
-        collision_resolution(objects[i], objects[j], collision_normal);
+      if (!(objects[i].wall && objects[j].wall)) {
+        let collision_normal = collision_detection(objects[i], objects[j]);
+        if (collision_normal) {
+          collision_resolution(objects[i], objects[j], collision_normal);
+          [objects[i].collision, objects[j].collision] = [true, true];
+        } else {
+          [objects[i].collision, objects[j].collision] = [false, false];
+        }
       }
     }
   }
@@ -85,53 +90,91 @@ function vector_equals(vector_1, vector_2) {
 // ***** COLLISION RESOLUTION *****
 
 function collision_resolution(object_1, object_2, collision_normal) {
-  let [mass_inverse_1, mass_inverse_2] = [1 / object_1.mass, 1 / object_2.mass];
-  let restitution = Math.min(object_1.restitution, object_2.restitution);
-  let impulse = -(1 + restitution) * object_1.velocity.minus(object_2.velocity).dot(collision_normal.normal) /
-    (mass_inverse_1 + mass_inverse_2);
-  object_1.velocity = object_1.velocity.plus(collision_normal.normal.times(impulse * mass_inverse_1));
-  object_2.velocity = object_2.velocity.minus(collision_normal.normal.times(impulse * mass_inverse_2));
+  let mass_inverse_1 = object_1.mass === -1.0? 0.0 : 1 / object_1.mass;  // mass is infinity
+  let mass_inverse_2 = object_2.mass === -1.0? 0.0 : 1 / object_2.mass;
+  let friction_coefficient = Math.max(object_1.friction_coefficient, object_2.friction_coefficient);
+    let restitution = Math.min(object_1.restitution, object_2.restitution);
+
+  let object_position = object_2.position.minus(object_1.position);
+  let normal = collision_normal.normal;
+  if (normal.dot(object_position) < 0) {  // normal always points from object 1 to object 2 (IMPORTANT!!!)
+    normal = normal.times(-1.0);
+  }
+
+  let object_velocity = object_1.velocity.minus(object_2.velocity);
+  let friction_1 = object_1.velocity.minus(normal.times(object_1.velocity.dot(normal)));
+  let friction_2 = object_2.velocity.minus(normal.times(object_2.velocity.dot(normal)));
+
+  let impulse = -(1 + restitution) * object_velocity.dot(normal) / (mass_inverse_1 + mass_inverse_2);
+  let impulse_1 = normal.plus(friction_1.times(friction_coefficient)).times(impulse * mass_inverse_1);
+  let impulse_2 = normal.plus(friction_2.times(friction_coefficient)).times(impulse * mass_inverse_2);
+
+  object_1.velocity = object_1.velocity.plus(impulse_1);
+  object_2.velocity = object_2.velocity.minus(impulse_2);
+
+  if (object_1.wall) {  // if object 1 is a wall, push object 2 by full overlap amount
+    object_2.position = object_2.position.plus(normal.times(collision_normal.overlap));
+  } else if (object_2.wall) {  // ^ vice versa
+    object_1.position = object_1.position.minus(normal.times(collision_normal.overlap));
+  } else {  // if neither are walls, then push both objects away each by half overlap amount
+    object_1.position = object_1.position.minus(normal.times(0.5 * collision_normal.overlap));
+    object_2.position = object_2.position.plus(normal.times(0.5 * collision_normal.overlap));
+  }
 }
+
 
 // ***** CLASSES *****
 
 export class Object {
-  constructor({ shape, material, bounding_type,
+  constructor({ shape, material, draw,
+                bounding_type, bounding_scale,
                 position, velocity, acceleration,
                 rotation, rotation_velocity,
-                scale, mass, restitution,
+                scale, mass, friction_coefficient, restitution,
+                gravity, wall,
                 color }={}) {
     this.shape = shape;
     this.material = material;
     this.transform = Mat4.identity();  // transformation matrix for object itself
 
-    this.position = position? position : vec3(0.0, 0.0, 0.0);
-    this.velocity = velocity? velocity : vec3(0.0, 0.0, 0.0);
-    this.acceleration = acceleration? acceleration : GRAVITY;
+    this.draw = draw !== undefined? draw : true;
 
-    this.rotation = rotation? rotation.slice(1, 4).normalized().times(rotation[0]) : vec3(0.0, 0.0, 0.0);
-    this.rotation_velocity = rotation_velocity? rotation_velocity : vec3(0.0, 0.0, 0.0);
+    this.wall = wall !== undefined? wall : false;
+    this.gravity = gravity !== undefined? gravity : GRAVITY;
 
-    this.scale = scale? scale : vec3(1.0, 1.0, 1.0);
-    this.mass = mass? mass : 1.0;  // arbitrary unit
-    this.restitution = restitution? restitution : 0.9;  // (inelastic) 0 <= restitution <= 1 (elastic)
+    this.position = position !== undefined? position : vec3(0.0, 0.0, 0.0);
+    this.velocity = velocity !== undefined? velocity : vec3(0.0, 0.0, 0.0);
+    this.acceleration = acceleration !== undefined? acceleration.plus(this.gravity) : this.gravity;
 
-    this.color = color? color : hex_color("#aaaaaa");
+    this.rotation = rotation !== undefined? rotation : vec3(0.0, 0.0, 0.0);
+    this.rotation_velocity = rotation_velocity !== undefined? rotation_velocity : vec3(0.0, 0.0, 0.0);
+
+    this.scale = scale !== undefined? scale : vec3(1.0, 1.0, 1.0);
+    this.mass = mass !== undefined? mass : 1.0;  // arbitrary unit, mass is infinity if value is -1.0
+
+    this.friction_coefficient = friction_coefficient !== undefined? friction_coefficient : 0.03;
+    this.restitution = restitution !== undefined? restitution : 0.8;  // (inelastic) 0 <= restitution <= 1 (elastic)
+
+    this.color = color !== undefined? color : hex_color("#aaaaaa");
 
     // the following are descriptions of each of the bounding types
     // EXACT: follows the geometry of the object exactly, currently only works for rectangular prisms
     // MODEL: rectangular prism initialized in model space, rotates with model
     // AXIS_ALIGNED: rectangular prisms re-computed every update, always parallel to axis (no rotation)
-    this.bounding_type = bounding_type? bounding_type : this.shape instanceof defs.Cube? "EXACT" : "MODEL";
+    this.bounding_type = bounding_type !== undefined? bounding_type :
+      this.shape instanceof defs.Cube? "EXACT" : "MODEL";
+    this.bounding_scale = bounding_scale !== undefined? bounding_scale : vec3(1.0, 1.0, 1.0);
     this.bounding = {
       // transformation matrix for bounding box (same as this.transform for rectangular prisms)
-      transform_base: this.get_axis_aligned_bounding(),
+      transform_base: this.get_axis_aligned_bounding(true)?.times(Mat4.scale(...this.bounding_scale)),
       transform: Mat4.identity(),
       vertices: [],  // vertices for bounding box (world space)
       normals: [],  // normals for bounding box (world space), directionally unique (no parallel normals)
       box: new Bounding_Box(hex_color("#ffff55")),  // bounding box object (to be drawn)
       shader: new Material(new defs.Basic_Shader()),  // basic shader
     };
+
+    this.collision = false;
   }
 
   draw_object({ context, program_state, update=true,
@@ -142,7 +185,9 @@ export class Object {
         delta_time: delta_time, pre_transform: pre_transform, post_transform: post_transform,
       });
     }
-    this.shape.draw(context, program_state, this.transform, this.material.override({color: this.color}));
+    if (this.draw) {
+      this.shape.draw(context, program_state, this.transform, this.material.override({color: this.color}));
+    }
     if (draw_bounding) {
       this.bounding.box.draw(context, program_state, this.bounding.transform, this.bounding.shader, "LINES");
     }
@@ -163,14 +208,15 @@ export class Object {
 
   update_position(delta_time) {
     this.position = this.position.plus(this.velocity.times(delta_time));
-    if (this.position[1] < -5.0) {  // temporary bounce
-      this.velocity[1] = -this.restitution * this.velocity[1];
-    }
     this.rotation = this.rotation.plus(this.rotation_velocity.times(delta_time));
   }
 
   update_velocity(delta_time) {
-    this.velocity = this.velocity.plus(this.acceleration.times(delta_time));
+    let acceleration = this.acceleration;
+    if (this.collision) {
+      acceleration = acceleration.minus(this.gravity);
+    }
+    this.velocity = this.velocity.plus(acceleration.times(delta_time));
   }
 
   update_transform(pre_transform=null, post_transform=null) {
@@ -189,11 +235,16 @@ export class Object {
 
   update_bounding() {
     if (this.bounding_type === "EXACT" || this.shape.arrays.position.length === 0) {
-      this.bounding.transform = this.transform;
+      this.bounding.transform = this.transform.times(Mat4.scale(...this.bounding_scale));
     } else if (this.bounding_type === "MODEL") {
-      this.bounding.transform = this.transform.times(this.get_axis_aligned_bounding(true));
+      if (!this.bounding.transform_base) {
+        this.bounding.transform_base = this.get_axis_aligned_bounding(true);
+      }
+      let transform_base = this.bounding.transform_base? this.bounding.transform_base : Mat4.identity();
+      this.bounding.transform = this.transform.times(transform_base)?.times(Mat4.scale(...this.bounding_scale));
     } else {
-      this.bounding.transform = this.get_axis_aligned_bounding();
+      this.bounding.transform = this.get_axis_aligned_bounding(false)
+        .times(Mat4.scale(...this.bounding_scale));
     }
 
     // compute list of (non-parallel) world-space vertices and normals for the bounding box
@@ -213,6 +264,9 @@ export class Object {
   }
 
   get_axis_aligned_bounding(object_space=false) {
+    if (this.shape.arrays.position.length === 0) {
+      return null;
+    }
     // convert vertices of shape from object to world space
     let vertices = this.shape.arrays.position;
     if (!object_space) {
@@ -244,7 +298,6 @@ export class Object {
     array.push(normalize? vector.normalized() : vector);
   }
 }
-
 
 class Bounding_Box extends defs.Cube {
   constructor(color_box=hex_color("#ffffff")) {
