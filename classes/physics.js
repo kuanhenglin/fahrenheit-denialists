@@ -6,11 +6,31 @@ const {  // load common classes to the current scope
 } = tiny;
 
 
-const GRAVITY = vec3(0.0, -9.81, 0.0);
-const DAMPEN = 0.70;
+const GRAVITY = vec3(0.0, -9.81, 0.0).times(3.0);  // ramp up gravity due to working on a much bigger scale
+const ROTATION_WEIGHT = 0.40;
+const DAMPEN = 4.0;
 const ERROR = 0.0001;
 const ERROR_SMALL = 0.0000001;
 const HUGE = 999999999.9;
+
+
+class Bounding_Box extends defs.Cube {
+  constructor(color_box=hex_color("#ffffff")) {
+    super("position", "normal", "color");
+    let vertices = [
+      [-1, -1, -1], [-1, -1, 1], [-1, 1, -1], [-1, 1, 1], [1, -1, -1], [1, -1, 1], [1, 1, -1], [1, 1, 1],
+    ];
+    let indices = [0, 1, 0, 2, 1, 3, 2, 3, 4, 5, 4, 6, 5, 7, 6, 7, 0, 4, 1, 5, 2, 6, 3, 7];
+    this.arrays.position = indices.map(index => vec3(...vertices[index]));
+    this.arrays.color = Array(24).fill(color_box);
+    this.indices = false;
+  }
+}
+
+
+const SHAPES = {
+  bounding_box: new Bounding_Box(hex_color("#ffff55")),
+}
 
 
 // ***** COLLISION *****
@@ -24,14 +44,15 @@ const HUGE = 999999999.9;
 // note that the current way of checking collision is slow
 export function collision(objects) {
   for (let i = 0; i < objects.length; ++i) {
+    objects[i].collision = false;
+  }
+  for (let i = 0; i < objects.length; ++i) {
     for (let j = i + 1; j < objects.length; ++j) {
       if (!(objects[i].wall && objects[j].wall)) {
         let collision_normal = collision_detection(objects[i], objects[j]);
         if (collision_normal) {
           collision_resolution(objects[i], objects[j], collision_normal);
           [objects[i].collision, objects[j].collision] = [true, true];
-        } else {
-          [objects[i].collision, objects[j].collision] = [false, false];
         }
       }
     }
@@ -44,7 +65,7 @@ export function collision(objects) {
 // uses the separating axis theorem to check for overlap
 function collision_detection(object_1, object_2) {
   // get face normal vectors of the bounding boxes of both shapes
-  let normals = object_1.bounding.normals.concat(object_2.bounding.normals);
+  let normals = get_normals(object_1, object_2);
   // note that the bounding normals and vertices are already in world space (check Object class for how it is done)
 
   let overlap_minimum = null;
@@ -62,6 +83,16 @@ function collision_detection(object_1, object_2) {
     }
   }
   return overlap_minimum
+}
+
+function get_normals(object_1, object_2) {
+  let crosses = [];
+  for (let i = 0; i < object_1.bounding.normals.length; ++i) {
+    for (let j = 0; j < object_2.bounding.normals.length; ++j) {
+      crosses.push(object_1.bounding.normals[i].cross(object_2.bounding.normals[j]).normalized());
+    }
+  }
+  return object_1.bounding.normals.concat(object_2.bounding.normals, crosses);
 }
 
 // uses separating axis theorem (SAT) projection
@@ -90,36 +121,157 @@ function vector_equals(vector_1, vector_2) {
 // ***** COLLISION RESOLUTION *****
 
 function collision_resolution(object_1, object_2, collision_normal) {
+  // *** COEFFICIENTS ***
   let mass_inverse_1 = object_1.mass === -1.0? 0.0 : 1 / object_1.mass;  // mass is infinity
   let mass_inverse_2 = object_2.mass === -1.0? 0.0 : 1 / object_2.mass;
   let friction_coefficient = Math.max(object_1.friction_coefficient, object_2.friction_coefficient);
     let restitution = Math.min(object_1.restitution, object_2.restitution);
 
+  // *** ADJUST NORMAL ***
   let object_position = object_2.position.minus(object_1.position);
   let normal = collision_normal.normal;
   if (normal.dot(object_position) < 0) {  // normal always points from object 1 to object 2 (IMPORTANT!!!)
     normal = normal.times(-1.0);
   }
 
-  let object_velocity = object_1.velocity.minus(object_2.velocity);
+  // *** ROTATION VELOCITY ***
+  let intersection_1 = vertex_average(intersecting_vertices(object_1, object_2));
+  let intersection_2 = vertex_average(intersecting_vertices(object_2, object_1));
+
+  let compute_rotation_velocity_1 = intersection_1 !== null && !object_1.wall && !!object_1.bounding.transform_base;
+  let compute_rotation_velocity_2 = intersection_2 !== null && !object_2.wall && !!object_2.bounding.transform_base;
+
+  let [inertia_inverse_1, object_intersection_1, rotation_impulse_1] = Array(3).fill(vec3(0.0, 0.0, 0.0));
+  if (compute_rotation_velocity_1) {
+    inertia_inverse_1 = get_inertia(object_1, true);
+    object_intersection_1 = object_1.position.minus(intersection_1).normalized();
+    rotation_impulse_1 = apply_inertia_impulse(object_1, object_intersection_1.cross(normal), inertia_inverse_1)
+      .cross(object_intersection_1);
+  }
+  let [inertia_inverse_2, object_intersection_2, rotation_impulse_2] = Array(3).fill(vec3(0.0, 0.0, 0.0));
+  if (compute_rotation_velocity_2) {
+    inertia_inverse_2 = get_inertia(object_2, true);
+    object_intersection_2 = object_2.position.minus(intersection_2).normalized();
+    rotation_impulse_2 = apply_inertia_impulse(object_2, object_intersection_2.cross(normal), inertia_inverse_2)
+      .cross(object_intersection_2);
+  }
+
+  // *** LINEAR IMPULSE ***
   let friction_1 = object_1.velocity.minus(normal.times(object_1.velocity.dot(normal)));
   let friction_2 = object_2.velocity.minus(normal.times(object_2.velocity.dot(normal)));
 
-  let impulse = -(1 + restitution) * object_velocity.dot(normal) / (mass_inverse_1 + mass_inverse_2);
+  let impulse = -(1 + restitution) * object_1.velocity.minus(object_2.velocity).dot(normal) /
+    (mass_inverse_1 + mass_inverse_2 + (rotation_impulse_1.plus(rotation_impulse_2).dot(normal) * ROTATION_WEIGHT));
   let impulse_1 = normal.plus(friction_1.times(friction_coefficient)).times(impulse * mass_inverse_1);
   let impulse_2 = normal.plus(friction_2.times(friction_coefficient)).times(impulse * mass_inverse_2);
 
   object_1.velocity = object_1.velocity.plus(impulse_1);
   object_2.velocity = object_2.velocity.minus(impulse_2);
 
-  if (object_1.wall) {  // if object 1 is a wall, push object 2 by full overlap amount
-    object_2.position = object_2.position.plus(normal.times(collision_normal.overlap));
-  } else if (object_2.wall) {  // ^ vice versa
-    object_1.position = object_1.position.minus(normal.times(collision_normal.overlap));
-  } else {  // if neither are walls, then push both objects away each by half overlap amount
-    object_1.position = object_1.position.minus(normal.times(0.5 * collision_normal.overlap));
-    object_2.position = object_2.position.plus(normal.times(0.5 * collision_normal.overlap));
+  // *** ROTATION IMPULSE ***
+  if (compute_rotation_velocity_1) {
+    object_1.rotation_velocity = object_1.rotation_velocity.minus(apply_inertia_impulse(
+      object_1, object_intersection_1.cross(normal.times(impulse)).times(ROTATION_WEIGHT), inertia_inverse_1
+    ));
   }
+  if (compute_rotation_velocity_2) {
+    object_2.rotation_velocity = object_2.rotation_velocity.plus(apply_inertia_impulse(
+      object_2, object_intersection_2.cross(normal.times(impulse)).times(ROTATION_WEIGHT), inertia_inverse_2
+    ));
+  }
+
+  // *** PREVENT OVERLAP ***
+  minimum_translation_distance(object_1, object_2, normal, collision_normal.overlap);
+}
+
+function minimum_translation_distance(object_1, object_2, normal, overlap) {
+  if (object_1.wall) {  // if object 1 is a wall, push object 2 by full overlap amount
+    object_2.position = object_2.position.plus(normal.times(overlap));
+  } else if (object_2.wall) {  // ^ vice versa
+    object_1.position = object_1.position.minus(normal.times(overlap));
+  } else {  // if neither are walls, then push both objects away each by half overlap amount
+    object_1.position = object_1.position.minus(normal.times(0.5 * overlap));
+    object_2.position = object_2.position.plus(normal.times(0.5 * overlap));
+  }
+}
+
+function apply_inertia_impulse(object, rotation_impulse, inertia_inverse) {
+  if (object.bounding_type === "EXACT" || object.bounding_type === "MODEL") {
+    let rotation_transform = Mat4.rotation(object.rotation.norm(), ...object.rotation);
+    let rotation_transform_inverse = Mat4.inverse(rotation_transform);
+    let rotation_impulse_projected = rotation_transform_inverse.times(rotation_impulse.to4(0.0)).to3();
+    return rotation_transform.times(
+      vec3(...rotation_impulse_projected.map((x, i) => x * inertia_inverse[i])).to4(0.0)
+    ).to3();
+
+  } else if (object.bounding_type === "AXIS_ALIGNED") {
+    return vec3(...rotation_impulse.map((x, i) => x * inertia_inverse[i]));
+  }
+}
+
+function get_inertia(object, inverse=true) {
+  let scale = vec3(0.0, 0.0, 0.0);
+  if (object.bounding_type === "EXACT" || object.bounding_type === "MODEL") {
+    scale = object.bounding.transform_base.times(object.scale.to4(0.0)).to3();
+  } else if (object.bounding_type === "AXIS_ALIGNED") {
+    scale = vec3(object.bounding.transform[0][0], object.bounding.transform[1][1], object.bounding.transform[2][2]);
+  }
+  let inertia = vec3(scale[1]**2 + scale[2]**2, scale[0]**2 + scale[2]**2, scale[0]**2 + scale[1]**2)
+    .times(object.mass / 12);
+  if (inverse) {
+    return vec3(...inertia.map(x => 1 / x));
+  }
+  return inertia;
+}
+
+function intersecting_vertices(object_1, object_2) {
+  let object_2_transform_inverse = Mat4.inverse(object_2.bounding.transform);
+  let object_1_vertices_projected = object_1.bounding.vertices.map(
+    vertex => object_2_transform_inverse.times(vertex.to4(1.0)).to3()
+  );
+  let intersections_projected = [];
+  for (let i = 0; i < object_1_vertices_projected.length; i += 2) {
+    intersections_projected.push(
+      ...get_intersections(object_1_vertices_projected[i], object_1_vertices_projected[i + 1])
+    );
+  }
+  return intersections_projected.map(
+    intersection => object_2.bounding.transform.times(intersection.to4(1.0)).to3()
+  );
+}
+
+function get_intersections(vertex_1, vertex_2) {
+  let distances = [
+    [vertex_1[0] + 1, vertex_2[0] + 1], [vertex_1[1] + 1, vertex_2[1] + 1], [vertex_1[2] + 1, vertex_2[2] + 1],
+    [vertex_1[0] - 1, vertex_2[0] - 1], [vertex_1[1] - 1, vertex_2[1] - 1], [vertex_1[2] - 1, vertex_2[2] - 1],
+  ];
+  let intersections = [];
+  for (let i = 0; i < 6; ++i) {
+    let intersection = vertex_1.plus(
+      vertex_2.minus(vertex_1).times(-distances[i][0] / (distances[i][1] - distances[i][0]))
+    );
+    if (in_bounding(intersection, i % 3)) {
+      intersections.push(intersection);
+    }
+  }
+  return intersections;
+}
+
+function in_bounding(intersection, axis) {
+  return (axis === 0 || (-1 < intersection[0] && intersection[0] < 1)) &&
+    (axis === 1 || (-1 < intersection[1] && intersection[1] < 1)) &&
+    (axis === 2 || (-1 < intersection[2] && intersection[2] < 1));
+}
+
+function vertex_average(vertices) {
+  if (vertices.length === 0) {
+    return null;
+  }
+  let sum = vec3(0.0, 0.0, 0.0);
+  for (let i = 0; i < vertices.length; ++i) {
+    sum = sum.plus(vertices[i]);
+  }
+  return sum.times(1 / vertices.length);
 }
 
 
@@ -129,7 +281,7 @@ export class Object {
   constructor({ shape, material, draw,
                 bounding_type, bounding_scale,
                 position, velocity, acceleration,
-                rotation, rotation_velocity,
+                rotation, rotation_velocity, rotation_acceleration,
                 scale, mass, friction_coefficient, restitution,
                 gravity, wall,
                 color }={}) {
@@ -148,12 +300,13 @@ export class Object {
 
     this.rotation = rotation !== undefined? rotation : vec3(0.0, 0.0, 0.0);
     this.rotation_velocity = rotation_velocity !== undefined? rotation_velocity : vec3(0.0, 0.0, 0.0);
+    this.rotation_acceleration = rotation_acceleration !== undefined? rotation_acceleration : vec3(0.0, 0.0, 0.0);
 
     this.scale = scale !== undefined? scale : vec3(1.0, 1.0, 1.0);
     this.mass = mass !== undefined? mass : 1.0;  // arbitrary unit, mass is infinity if value is -1.0
 
     this.friction_coefficient = friction_coefficient !== undefined? friction_coefficient : 0.03;
-    this.restitution = restitution !== undefined? restitution : 0.8;  // (inelastic) 0 <= restitution <= 1 (elastic)
+    this.restitution = restitution !== undefined? restitution : 0.7;  // (inelastic) 0 <= restitution <= 1 (elastic)
 
     this.color = color !== undefined? color : hex_color("#aaaaaa");
 
@@ -170,11 +323,21 @@ export class Object {
       transform: Mat4.identity(),
       vertices: [],  // vertices for bounding box (world space)
       normals: [],  // normals for bounding box (world space), directionally unique (no parallel normals)
-      box: new Bounding_Box(hex_color("#ffff55")),  // bounding box object (to be drawn)
+      box: SHAPES.bounding_box,  // bounding box object (to be drawn)
       shader: new Material(new defs.Basic_Shader()),  // basic shader
     };
 
     this.collision = false;
+
+    this.rotation_equilibriums = new Array(15);
+    for (let i = 0; i < 5; ++i) {
+      this.rotation_equilibriums[i] = vec3(i * Math.PI / 2, 0.0, 0.0);
+      this.rotation_equilibriums[i + 5] = vec3(0.0, i * Math.PI / 2, 0.0);
+      this.rotation_equilibriums[i + 10] = vec3(0.0, 0.0, i * Math.PI / 2);
+    }
+    this.rotation_equilibriums_reference = this.rotation_equilibriums.map(equilibrium =>
+      Mat4.rotation(equilibrium.norm(), ...equilibrium).times(vec4(1.0, 1.0, 1.0, 0.0)).to3().normalized()
+    );
   }
 
   draw_object({ context, program_state, update=true,
@@ -208,15 +371,21 @@ export class Object {
 
   update_position(delta_time) {
     this.position = this.position.plus(this.velocity.times(delta_time));
+    // wrap rotation every 2 pi magnitude
+    if (Math.floor(this.rotation.norm() / Math.PI / 2) > 1) {
+      this.rotation = this.rotation.minus(
+        this.rotation.normalized().times(Math.PI * 2 * Math.floor(this.rotation.norm() / Math.PI / 2))
+      );
+    }
     this.rotation = this.rotation.plus(this.rotation_velocity.times(delta_time));
   }
 
   update_velocity(delta_time) {
-    let acceleration = this.acceleration;
-    if (this.collision) {
-      acceleration = acceleration.minus(this.gravity);
+    this.velocity = this.velocity.plus(this.acceleration.times(delta_time));
+    this.rotation_velocity = this.rotation_velocity.plus(this.rotation_acceleration.times(delta_time));
+    if (!this.wall) {
+      this.rotation_velocity = this.rotation_velocity.times(Math.max(0.0, 1 - (DAMPEN * delta_time)));
     }
-    this.velocity = this.velocity.plus(acceleration.times(delta_time));
   }
 
   update_transform(pre_transform=null, post_transform=null) {
@@ -297,17 +466,5 @@ export class Object {
     }
     array.push(normalize? vector.normalized() : vector);
   }
-}
 
-class Bounding_Box extends defs.Cube {
-  constructor(color_box=hex_color("#ffffff")) {
-    super("position", "normal", "color");
-    let vertices = [
-      [-1, -1, -1], [-1, -1, 1], [-1, 1, -1], [-1, 1, 1], [1, -1, -1], [1, -1, 1], [1, 1, -1], [1, 1, 1],
-    ];
-    let indices = [0, 1, 0, 2, 1, 3, 2, 3, 4, 5, 4, 6, 5, 7, 6, 7, 0, 4, 1, 5, 2, 6, 3, 7];
-    this.arrays.position = indices.map(index => vec3(...vertices[index]));
-    this.arrays.color = Array(24).fill(color_box);
-    this.indices = false;
-  }
 }
