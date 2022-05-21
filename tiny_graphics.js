@@ -1418,7 +1418,11 @@ const Scene = tiny.Scene =
           release_event.call(recipient);
         };
       const key_name = shortcut_combination.join('+').split(" ").join("Space");
-      button.textContent = "(" + key_name + ") " + description;
+      if (key_name) {
+        button.textContent = "(" + key_name + ") " + description;
+      } else {
+        button.textContent = description;
+      }
       button.addEventListener("mousedown", press);
       button.addEventListener("mouseup", release);
       button.addEventListener("touchstart", press, {passive: true});

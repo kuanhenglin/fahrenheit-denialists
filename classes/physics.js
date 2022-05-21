@@ -6,13 +6,19 @@ const {  // load common classes to the current scope
 } = tiny;
 
 
-const GRAVITY = vec3(0.0, -9.81, 0.0).times(3.0);  // ramp up gravity due to working on a much bigger scale
+export const GRAVITY_MULTIPLIER = 3.0;  // ramp up gravity due to working on a much bigger scale
+let GRAVITY = vec3(0.0, -9.81, 0.0).times(GRAVITY_MULTIPLIER);
+
 const ROTATION_WEIGHT = 0.40;
 const DAMPEN = 4.0;
+
 const ERROR = 0.0001;
 const ERROR_SMALL = 0.0000001;
+
 const HUGE = 999999999.9;
 
+const MAX_VELOCITY = 100.0;
+const MAX_ROTATION_VELOCITY = 20.0;
 
 class Bounding_Box extends defs.Cube {
   constructor(color_box=hex_color("#ffffff")) {
@@ -30,6 +36,15 @@ class Bounding_Box extends defs.Cube {
 
 const SHAPES = {
   bounding_box: new Bounding_Box(hex_color("#ffff55")),
+}
+
+export function update_gravity(new_gravity, objects) {
+  for (let i = 0; i < objects.length; ++i) {
+    if (!objects[i].gravity_custom) {
+      objects[i].acceleration = objects[i].acceleration.minus(GRAVITY).plus(new_gravity);
+    }
+  }
+  GRAVITY = new_gravity;
 }
 
 
@@ -292,7 +307,8 @@ export class Object {
     this.draw = draw !== undefined? draw : true;
 
     this.wall = wall !== undefined? wall : false;
-    this.gravity = gravity !== undefined? gravity : GRAVITY;
+    this.gravity_custom = gravity !== undefined;
+    this.gravity = this.gravity_custom? gravity : GRAVITY;
 
     this.position = position !== undefined? position : vec3(0.0, 0.0, 0.0);
     this.velocity = velocity !== undefined? velocity : vec3(0.0, 0.0, 0.0);
@@ -328,16 +344,6 @@ export class Object {
     };
 
     this.collision = false;
-
-    this.rotation_equilibriums = new Array(15);
-    for (let i = 0; i < 5; ++i) {
-      this.rotation_equilibriums[i] = vec3(i * Math.PI / 2, 0.0, 0.0);
-      this.rotation_equilibriums[i + 5] = vec3(0.0, i * Math.PI / 2, 0.0);
-      this.rotation_equilibriums[i + 10] = vec3(0.0, 0.0, i * Math.PI / 2);
-    }
-    this.rotation_equilibriums_reference = this.rotation_equilibriums.map(equilibrium =>
-      Mat4.rotation(equilibrium.norm(), ...equilibrium).times(vec4(1.0, 1.0, 1.0, 0.0)).to3().normalized()
-    );
   }
 
   draw_object({ context, program_state, update=true,
@@ -386,6 +392,7 @@ export class Object {
     if (!this.wall) {
       this.rotation_velocity = this.rotation_velocity.times(Math.max(0.0, 1 - (DAMPEN * delta_time)));
     }
+    this.clip_velocity();
   }
 
   update_transform(pre_transform=null, post_transform=null) {
@@ -398,6 +405,15 @@ export class Object {
       .times(pre_transform? pre_transform : Mat4.identity())
       .times(Mat4.rotation(rotation_magnitude, ...rotation_axis))
       .times(Mat4.scale(...this.scale));
+  }
+
+  clip_velocity() {
+    if (this.velocity.norm() > MAX_VELOCITY) {
+      this.velocity = this.velocity.normalized().times(MAX_VELOCITY);
+    }
+    if (this.rotation_velocity.norm() > MAX_ROTATION_VELOCITY) {
+      this.rotation_velocity = this.rotation_velocity.normalized().times(MAX_ROTATION_VELOCITY);
+    }
   }
 
   // ***** COLLISION *****
