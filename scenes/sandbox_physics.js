@@ -1,5 +1,5 @@
 import {defs, tiny} from "../classes/common.js";
-import {Object, collision, update_gravity, GRAVITY_MULTIPLIER} from "../classes/physics.js";
+import {Object, collision, update_gravity, initialize_rotation_center, GRAVITY_MULTIPLIER} from "../classes/physics.js";
 import {Model} from "../classes/shapes.js";
 
 
@@ -14,6 +14,11 @@ function array_random(minimum, maximum, length=3) {
     return Array.from(Array(length)).map((_, i) => (Math.random() * (maximum - minimum)) + minimum);
   }
   return Array.from(Array(length)).map((_, i) => (Math.random() * (maximum[i] - minimum[i])) + minimum[i]);
+}
+
+
+function get_mass(scale) {
+  return scale.reduce((sum, x) => sum * x) ** 0.5;
 }
 
 
@@ -52,12 +57,13 @@ export class Sandbox_Physics extends Scene {
 
     this.objects = [];
     this.initialize_scene();
+    initialize_rotation_center(this.objects);
 
     this.camera_initial_position = Mat4.look_at(vec3(45, 25, 90), vec3(-5.5, -10.0, 0), vec3(0, 1, 0));
 
     this.bounding = false;
 
-    this.pause = false;
+    this.pause = true;
     this.time_elapsed = 0.0;
 
     this.blender = false;
@@ -106,12 +112,48 @@ export class Sandbox_Physics extends Scene {
       this.toggle_blender();
     }
     this.objects = [];
-    this.initialize_objects(30);
+    this.initialize_objects();
     this.initialize_walls(this.box.scale, this.box.thickness, true);
     this.time_elapsed = 0;
   }
 
-  initialize_objects(number_of_objects) {
+  initialize_objects() {
+    let scales = [vec3(5.0, 3.0, 2.0), vec3(2.0, 10.0, 3.5), vec3(5.0, 2.0, 3.0), vec3(4.0, 8.0, 3.5)];
+    this.objects = [
+      [
+        new Object({
+          shape: this.shapes.cube, material: this.materials.normal,
+          position: vec3(-5.0, 4.0, 0.0), rotation_model: vec3(0.0, 0.0, -Math.PI / 6),
+          scale: scales[0], mass: get_mass(scales[0]),
+          color: color(...array_random(0.0, 1.0), 1.0),
+        }),
+        new Object({
+          shape: this.shapes.sphere, material: this.materials.normal,
+          position: vec3(-2.0, 0.0, 0.0), rotation_model: vec3(0.0, 0.0, Math.PI / 6),
+          scale: scales[1], mass: get_mass(scales[1]),
+          color: color(...array_random(0.0, 1.0), 1.0),
+        }),
+      ],
+      [
+        new Object({
+          shape: this.shapes.cube, material: this.materials.normal,
+          position: vec3(10.0, 12.0, 0.0), velocity: vec3(-10.0, -10.0, 0.0),
+          rotation_model: vec3(0.0, 0.0, -Math.PI / 6), rotation_velocity: vec3(0.0, 0.0, -2 * Math.PI),
+          scale: scales[2], mass: get_mass(scales[0]),
+          color: color(...array_random(0.0, 1.0), 1.0),
+        }),
+        new Object({
+          shape: this.shapes.sphere, material: this.materials.normal,
+          position: vec3(13.0, 8.0, 0.0), velocity: vec3(-10.0, -10.0, 0.0),
+          rotation_model: vec3(0.0, 0.0, Math.PI / 6), rotation_velocity: vec3(0.0, 0.0, -2 * Math.PI),
+          scale: scales[3], mass: get_mass(scales[1]),
+          color: color(...array_random(0.0, 1.0), 1.0),
+        }),
+      ],
+    ];
+  }
+
+  initialize_objects_many(number_of_objects) {
     let shape_list = [this.shapes.cube, this.shapes.sphere, this.shapes.teapot, this.shapes.miku, this.shapes.desk];
     let position_range = this.box.scale.minus(vec3(5.0, 5.0, 5.0));
     for (let i = 0; i < number_of_objects; i += shape_list.length) {
@@ -122,6 +164,7 @@ export class Sandbox_Physics extends Scene {
         }
         this.objects.push(
           new Object({
+            id: i,
             shape: shape_list[j], material: j === 0? this.materials.brick_wall : this.materials.normal,
             position: vec3(...array_random(position_range.times(-1.0), position_range)),
             velocity: vec3(...array_random(-20.0, 20.0)),
@@ -181,7 +224,7 @@ export class Sandbox_Physics extends Scene {
     ]
 
     if (add_to_objects) {
-      this.objects = this.objects.concat(this.walls);
+      this.objects.push(this.walls);
     }
   }
 
@@ -221,14 +264,15 @@ export class Sandbox_Physics extends Scene {
     const light_position = vec4(-0.75 * this.box.scale[0], 0.75 * this.box.scale[1], 0.75 * this.box.scale[2], 1.0);
     program_state.lights = [new Light(light_position, hex_color("#ffffff"), 10000)];  // position, color, size
 
-    collision(this.objects);  // collision detection and resolution
+    collision(this.objects, this.objects_group, this.objects_group_search);  // collision detection and resolution
 
     for (let i = 0; i < this.objects.length; ++i) {
-      // this.objects[i].rotation_velocity = vec3(i + 1, i + 1, i + 1).times(0.25);  // random rotation for fun
-      this.objects[i].draw_object({
-        context: context, program_state: program_state,
-        delta_time: delta_time, draw_bounding: this.bounding
-      });
+      for (let j = 0; j < this.objects[i].length; ++j) {
+        this.objects[i][j].draw_object({
+          context: context, program_state: program_state,
+          delta_time: delta_time, draw_bounding: this.bounding
+        });
+      }
     }
   }
 }
