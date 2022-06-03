@@ -62,7 +62,7 @@ export class Cake_Physics extends Scene {
     this.initialize_scene();
     initialize_rotation_center(this.objects);
 
-    this.camera_initial_position = Mat4.look_at(vec3(45, 25, 90), vec3(-5.5, -10.0, 0), vec3(0, 1, 0));
+    this.camera_initial_position = Mat4.look_at(vec3(5.0, 2.5, 15.0), vec3(-1.0, -1.5, 0), vec3(0, 1, 0));
 
     this.bounding = false;
 
@@ -272,7 +272,9 @@ export class Cake_Physics extends Scene {
     const light_position = vec4(-0.75 * this.box.scale[0], 0.75 * this.box.scale[1], 0.75 * this.box.scale[2], 1.0);
     program_state.lights = [new Light(light_position, hex_color("#ffffff"), 10000)];  // position, color, size
 
-    collision(this.objects, this.objects_group, this.objects_group_search);  // collision detection and resolution
+    if (!this.pause) {
+      collision(this.objects, this.objects_group, this.objects_group_search);  // collision detection and resolution
+    }
 
     for (let i = 0; i < this.objects.length; ++i) {
       for (let j = 0; j < this.objects[i].length; ++j) {
