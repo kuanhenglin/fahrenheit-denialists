@@ -1,4 +1,5 @@
 import {defs, tiny} from "./common.js";
+import {Color_Phong_Shader} from "./shaders.js";
 
 
 const {  // load common classes to the current scope
@@ -39,10 +40,17 @@ const SHAPES = {
 }
 
 
+const MATERIALS = {
+  pure: new Material(new Color_Phong_Shader(), {}),
+}
+
+
 export function update_gravity(new_gravity, objects) {
   for (let i = 0; i < objects.length; ++i) {
-    if (!objects[i].gravity_custom) {
-      objects[i].acceleration = objects[i].acceleration.minus(GRAVITY).plus(new_gravity);
+    for (let j = 0; j < objects[i].length; ++j) {
+      if (!objects[i][j].gravity_custom) {
+        objects[i][j].acceleration = objects[i][j].acceleration.minus(GRAVITY).plus(new_gravity);
+      }
     }
   }
   GRAVITY = new_gravity;
@@ -360,7 +368,7 @@ function vertex_average(vertices) {
 
 // ***** CLASSES *****
 
-export class Object {
+export class Thing {
   constructor({ shape, material, draw,
                 bounding_type, bounding_scale,
                 position, velocity, acceleration,
@@ -418,14 +426,16 @@ export class Object {
 
   draw_object({ context, program_state, update=true,
                 delta_time, pre_transform, post_transform,
-                draw_bounding=true }={}) {
+                draw_bounding=true, shadow_pass}={}) {
     if (update && delta_time < 0.05) {  // update position, velocity, acceleration, etc.
       this.update({
         delta_time: delta_time, pre_transform: pre_transform, post_transform: post_transform,
       });
     }
     if (this.draw) {
-      this.shape.draw(context, program_state, this.transform, this.material.override({color: this.color}));
+      this.shape.draw(context, program_state, this.transform,
+        shadow_pass? this.material.override({color: this.color}) : MATERIALS.pure
+      );
     }
     if (draw_bounding) {
       this.bounding.box.draw(context, program_state, this.bounding.transform, this.bounding.shader, "LINES");
