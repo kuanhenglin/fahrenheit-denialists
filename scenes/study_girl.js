@@ -26,11 +26,6 @@ function array_random(minimum, maximum, length=3) {
 }
 
 
-function get_mass(scale) {
-  return scale.reduce((sum, x) => sum * x) ** 0.5;
-}
-
-
 export class Study_Girl extends Scene {
   constructor() {
     // constructor(): populate initial values like Shapes and Materials
@@ -46,6 +41,7 @@ export class Study_Girl extends Scene {
       notebook: new Model("../assets/notebook.obj"),
       computer: new Model("../assets/laptop.obj"),
       book_case: new Model("../assets/bookcase.obj"),
+      plant: new Model("../assets/plant.obj"),
       // desk
       desk_top: new Model("../assets/desk_top.obj"),
       desk_leg_left_front: new Model("../assets/desk_leg_left_front.obj"),
@@ -67,25 +63,29 @@ export class Study_Girl extends Scene {
     // load material definitions onto the GPU
     this.materials = {
       normal: new Material(new Shadow_Textured_Phong_Shader(1),
-        {ambient: 0.1, diffusivity: 0.8, specularity: 0.5, color_texture: null, light_depth_texture: null}
+        {ambient: 0.2, diffusivity: 0.8, specularity: 0.5, color_texture: null, light_depth_texture: null}
       ),
       shiny: new Material(new Shadow_Textured_Phong_Shader(1),
-        {ambient: 0.05, diffusivity: 0.3, specularity: 1.0, color_texture: null, light_depth_texture: null}
+        {ambient: 0.15, diffusivity: 0.3, specularity: 1.0, color_texture: null, light_depth_texture: null}
       ),
       floor: new Material(new Shadow_Textured_Phong_Shader(1), {
-        ambient: 0.5, diffusivity: 0.5, specularity: 0.3,
+        ambient: 0.6, diffusivity: 0.5, specularity: 0.3,
         color_texture: new Texture("../assets/floor.png"), light_depth_texture: null
       }),
       wall: new Material(new Shadow_Textured_Phong_Shader(1), {
-        ambient: 0.5, diffusivity: 0.5, specularity: 0.3,
+        ambient: 0.6, diffusivity: 0.5, specularity: 0.3,
         color_texture: new Texture("../assets/wall.png"), light_depth_texture: null
       }),
       window: new Material(new Shadow_Textured_Phong_Shader(1), {
-        ambient: 0.5, diffusivity: 0.5, specularity: 0.3,
+        ambient: 0.6, diffusivity: 0.5, specularity: 0.3,
         color_texture: new Texture("../assets/window.png"), light_depth_texture: null
       }),
+      blender: new Material(new Shadow_Textured_Phong_Shader(1), {
+        ambient: 0.5, diffusivity: 0.2, specularity: 0.7,
+        color_texture: new Texture("../assets/blender.png"), light_depth_texture: null
+      }),
       work_in_progress: new Material(new Shadow_Textured_Phong_Shader(1), {
-        ambient: 0.6, diffusivity: 0.5, specularity: 0.3,
+        ambient: 0.7, diffusivity: 0.5, specularity: 0.3,
         color_texture: new Texture("../assets/work_in_progress.png"), light_depth_texture: null
       }),
       light_source: new Material(new defs.Phong_Shader(),
@@ -99,6 +99,8 @@ export class Study_Girl extends Scene {
     this.objects = [];
     this.initialize_scene();
 
+    this.update_rotation(false);
+
     this.camera_initial_position = Mat4.look_at(vec3(25, 12.5, 50), vec3(-5.0, -5.0, 0), vec3(0, 1, 0));
     // this.camera_initial_position = Mat4.look_at(vec3(7.5, 2.5, 15.0), vec3(-1.0, 0, 0), vec3(0, 1, 0));
 
@@ -108,6 +110,7 @@ export class Study_Girl extends Scene {
     this.time_elapsed = 0.0;
 
     this.blender = false;
+    this.ungrouped = false;
 
     this.light_position = vec4(-0.75 * this.box.scale[0], 0.75 * this.box.scale[1], 0.75 * this.box.scale[2], 1.0);
     this.light_color = hex_color("#ffdd55");
@@ -122,36 +125,39 @@ export class Study_Girl extends Scene {
     );
     this.new_line();
     this.key_triggered_button("Toggle pause", ["Control", "p"], () => this.pause = !this.pause);
-    this.new_line();
     this.key_triggered_button("Toggle bounding boxes", ["Control", "b"], () => this.bounding = !this.bounding);
     this.new_line();
     this.key_triggered_button("Toggle blender", ["Control", "d"], () => this.toggle_blender());
+    this.key_triggered_button("Shoot object", ["Control", "e"], () => this.shoot_object());
     this.new_line();
-    this.key_triggered_button("Ungroup objects", ["Control", "u"], () => this.ungroup_objects());
+    this.live_string(box => box.textContent = "Angular velocity and impulse: ");
+    this.key_triggered_button("On", ["Control", "6"], () => this.update_rotation(true));
+    this.key_triggered_button("Off", ["Control", "7"], () => this.update_rotation(false));
     this.new_line();
     this.key_triggered_button("Initialize scene", ["Control", "i"], () => this.initialize_scene());
+    this.key_triggered_button("Ungroup objects", ["Control", "u"], () => this.ungroup_objects());
     this.new_line();
     this.live_string(box => box.textContent = "Gravity: ");
     this.key_triggered_button(
-      "none", [], () => update_gravity(vec3(0.0, 0.0, 0.0).times(GRAVITY_MULTIPLIER), this.objects)
+      "none", [""], () => update_gravity(vec3(0.0, 0.0, 0.0).times(GRAVITY_MULTIPLIER), this.objects)
     );
     this.key_triggered_button(
-      "+x", [], () => update_gravity(vec3(9.81, 0.0, 0.0).times(GRAVITY_MULTIPLIER), this.objects)
+      "+x", [""], () => update_gravity(vec3(9.81, 0.0, 0.0).times(GRAVITY_MULTIPLIER), this.objects)
     );
     this.key_triggered_button(
-      "-x", [], () => update_gravity(vec3(-9.81, 0.0, 0.0).times(GRAVITY_MULTIPLIER), this.objects)
+      "-x", [""], () => update_gravity(vec3(-9.81, 0.0, 0.0).times(GRAVITY_MULTIPLIER), this.objects)
     );
     this.key_triggered_button(
-      "+y", [], () => update_gravity(vec3(0.0, 9.81, 0.0).times(GRAVITY_MULTIPLIER), this.objects)
+      "+y", [""], () => update_gravity(vec3(0.0, 9.81, 0.0).times(GRAVITY_MULTIPLIER), this.objects)
     );
     this.key_triggered_button(
-      "-y", [], () => update_gravity(vec3(0.0, -9.81, 0.0).times(GRAVITY_MULTIPLIER), this.objects)
+      "-y", [""], () => update_gravity(vec3(0.0, -9.81, 0.0).times(GRAVITY_MULTIPLIER), this.objects)
     );
     this.key_triggered_button(
-      "+z", [], () => update_gravity(vec3(0.0, 0.0, 9.81).times(GRAVITY_MULTIPLIER), this.objects)
+      "+z", [""], () => update_gravity(vec3(0.0, 0.0, 9.81).times(GRAVITY_MULTIPLIER), this.objects)
     );
     this.key_triggered_button(
-      "-z", [], () => update_gravity(vec3(0.0, 0.0, -9.81).times(GRAVITY_MULTIPLIER), this.objects)
+      "-z", [""], () => update_gravity(vec3(0.0, 0.0, -9.81).times(GRAVITY_MULTIPLIER), this.objects)
     );
   }
 
@@ -159,7 +165,14 @@ export class Study_Girl extends Scene {
     if (this.blender) {
       this.toggle_blender();
     }
-    this.objects = [];
+    this.objects = [[
+      new Thing({shape: this.shapes.lamp, material: this.materials.shiny,
+        position: vec3(-22.0, 1.1, -16.0),
+        rotation_model: vec3(0.0, -2 * Math.PI / 3, 0.0),
+        scale: vec3(1.5, 1.5, 1.5), mass: 0.75,
+        color: hex_color("#dd8822"),
+      })
+    ]];
     this.initialize_walls(this.box.scale, this.box.thickness, true);
     this.initialize_objects();
     initialize_rotation_center(this.objects);
@@ -168,17 +181,9 @@ export class Study_Girl extends Scene {
 
   initialize_objects() {
     this.objects = this.objects.concat([
-      [
-        new Thing({shape: this.shapes.lamp, material: this.materials.shiny,
-          position: vec3(-22.0, 1.5, -16.0),
-          rotation_model: vec3(0.0, -2 * Math.PI / 3, 0.0),
-          scale: vec3(1.5, 1.5, 1.5), mass: 0.75,
-          color: hex_color("#dd8822"),
-        })
-      ],
       this.study_girl({
-        position: vec3(5.0, 5.0, -5.0),
-        scale: vec3(1.5, 1.5, 1.5),
+        position: vec3(-13.0, -1.5, -10.0),
+        scale: vec3(2.5, 2.5, 2.5),
         rotation: vec3(0.0, -Math.PI / 2, 0.0)
       }),
       this.desk({
@@ -198,7 +203,7 @@ export class Study_Girl extends Scene {
       ],
       [
         new Thing({shape: this.shapes.computer, material: this.materials.shiny,
-          position: vec3(-23.0, -3.0, -6.0),
+          position: vec3(-23.0, -3.1, -7.0),
           rotation_model: vec3(0.0, Math.PI / 2, 0.0),
           scale: vec3(2.5, 2.5, 2.5), mass: 1.5,
           color: hex_color("#eeeeee"),
@@ -206,10 +211,18 @@ export class Study_Girl extends Scene {
       ],
       [
         new Thing({shape: this.shapes.notebook, material: this.materials.normal,
-          position: vec3(-20.0, -3.0, 2.0),
+          position: vec3(-20.0, -3.3, 2.0),
           rotation_model: vec3(0.0, -Math.PI / 6, 0.0),
           scale: vec3(1.0, 1.0, 1.0), mass: 5.0,
           color: color(...array_random(0.0, 1.0), 1.0),
+        })
+      ],
+      [
+        new Thing({shape: this.shapes.plant, material: this.materials.normal,
+          position: vec3(-24.0, -0.3, 4.0),
+          rotation_model: vec3(0.0, -2 * Math.PI / 3, 0.0),
+          scale: vec3(1.5, 1.5, 1.5), bounding_scale: vec(0.7, 1.0, 0.7), mass: 5.0,
+          color: hex_color("#dd8822"),
         })
       ],
     ]);
@@ -369,17 +382,29 @@ export class Study_Girl extends Scene {
 
   toggle_blender() {
     if (this.blender) {
-      this.objects[0].pop();
+      this.objects[1].pop();
       this.blender = false;
     } else {
-      this.objects[0].push(new Thing({
-        shape: this.shapes.cube, material: this.materials.normal, mass: -1.0,
-        position: vec3(0.0, -10.0, 0.0), rotation_velocity: vec3(0.0, Math.PI / 4, 0.0),
+      this.objects[1].push(new Thing({
+        shape: this.shapes.cube, material: this.materials.blender, mass: -1.0,
+        position: vec3(0.0, -10.0, 0.0), rotation_velocity: vec3(0.0, Math.PI / 3, 0.0),
         scale: vec3(40.0, 10.0, this.box.thickness[0]),
-        gravity: vec3(0.0, 0.0, 0.0), wall: true, color: hex_color("#aaaaaa"),
+        gravity: vec3(0.0, 0.0, 0.0), wall: true, color: hex_color("#202020"),
       }));
       this.blender = true;
     }
+  }
+
+  shoot_object() {
+    this.objects.push([
+      new Thing({shape: this.shapes.sphere, material: this.materials.normal,
+        scale: vec3(...array_random(0.25, 2.0)),
+        position: vec3(...array_random([-27.5, -15, 5.0], [27.5, 15, 27.5])),
+        velocity: vec3(...array_random([-50.0, 0.0, -50.0], [50.0, 50.0, 0.0])),
+        mass: array_random(1.0, 30.0, 1)[0],
+        color: color(...array_random(0.0, 1.0), 1.0),
+      })
+    ]);
   }
 
   ungroup_objects() {
@@ -390,6 +415,15 @@ export class Study_Girl extends Scene {
       }
     }
     this.objects = objects_ungrouped;
+    this.ungrouped = true;
+  }
+
+  update_rotation(do_rotation=false) {
+    for (let i = 0; i < this.objects.length; ++i) {
+      for (let j = 0; j < this.objects[i].length; ++j) {
+        this.objects[i][j].do_rotation = do_rotation;
+      }
+    }
   }
 
   texture_buffer_init(gl) {
@@ -485,7 +519,6 @@ export class Study_Girl extends Scene {
 
   display(context, program_state) {
     // display():  called once per frame of animation
-
     let gl = context.context;
     if (!this.init_ok) {
       const extension = gl.getExtension('WEBGL_depth_texture');
@@ -511,10 +544,13 @@ export class Study_Girl extends Scene {
     const delta_time = this.pause? 0.0 : program_state.animation_delta_time / 1000 * DELTA_MULTIPLIER;
     this.time_elapsed += delta_time;
 
-    let lamp_object = this.objects[1][0];
+    let lamp_object = this.objects[0][0];
+    if (this.ungrouped) {
+      console.log(this.objects);
+    }
     this.light_position = (Mat4.rotation(
       lamp_object.rotation.norm(), ...(lamp_object.rotation.norm() === 0.0? [1.0, 0.0, 0.0] : lamp_object.rotation)
-    ).times(vec4(1.5, 2.7, 0.7, 0.0))).plus(this.objects[1][0].position.to4(1.0));
+    ).times(vec4(1.5, 2.7, 0.7, 0.0))).plus(lamp_object.position.to4(1.0));
 
     // light source(s) (phong shader takes maximum of 2 sources)
     program_state.lights = [new Light(this.light_position, this.light_color, 10 ** 9)];  // position, color, size
