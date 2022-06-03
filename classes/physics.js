@@ -7,19 +7,21 @@ const {  // load common classes to the current scope
 } = tiny;
 
 
-export const GRAVITY_MULTIPLIER = 1.0;  // ramp up gravity due to working on a much bigger scale
+export const GRAVITY_MULTIPLIER = 3.0;  // ramp up gravity due to working on a much bigger scale
 let GRAVITY = vec3(0.0, -9.81, 0.0).times(GRAVITY_MULTIPLIER);
 
-const ROTATION_WEIGHT = 0.40;
+const ROTATION_WEIGHT = 0.30;
 const DAMPEN = 4.0;
 
 const ERROR = 0.0001;
-const ERROR_SMALL = 0.0000001;
+const ERROR_SMALL = 0.000001;
 
 const HUGE = 999999999.9;
 
-const MAX_VELOCITY = 100.0;
-const MAX_ROTATION_VELOCITY = 20.0;
+const MAX_VELOCITY = 50.0;
+const MAX_ROTATION_VELOCITY = 10.0;
+
+const INERTIA_DIVIDER = 6.0;
 
 class Bounding_Box extends defs.Cube {
   constructor(color_box=hex_color("#ffffff")) {
@@ -207,8 +209,10 @@ function collision_resolution(object_group_1, object_group_2, collision_normal) 
   let intersection_1 = vertex_average(intersecting_vertices(object_1, object_2));
   let intersection_2 = vertex_average(intersecting_vertices(object_2, object_1));
 
-  let compute_rotation_velocity_1 = intersection_1 !== null && !object_1.wall && !!object_1.bounding.transform_base;
-  let compute_rotation_velocity_2 = intersection_2 !== null && !object_2.wall && !!object_2.bounding.transform_base;
+  let compute_rotation_velocity_1 = intersection_1 !== null && !object_1.wall && !!object_1.bounding.transform_base &&
+    object_1.do_rotation;
+  let compute_rotation_velocity_2 = intersection_2 !== null && !object_2.wall && !!object_2.bounding.transform_base &&
+    object_2.do_rotation;
 
   let [inertia_inverse_1, object_intersection_1, rotation_impulse_1, object_group_1_position] =
     Array(4).fill(vec3(0.0, 0.0, 0.0));
@@ -312,7 +316,7 @@ function get_inertia(object) {
     scale = vec3(object.bounding.transform[0][0], object.bounding.transform[1][1], object.bounding.transform[2][2]);
   }
   return vec3(scale[1]**2 + scale[2]**2, scale[0]**2 + scale[2]**2, scale[0]**2 + scale[1]**2)
-    .times(object.mass / 12);
+    .times(object.mass / INERTIA_DIVIDER);
 }
 
 function intersecting_vertices(object_1, object_2) {
@@ -372,7 +376,7 @@ export class Thing {
   constructor({ shape, material, draw,
                 bounding_type, bounding_scale,
                 position, velocity, acceleration,
-                rotation_model, rotation, rotation_velocity, rotation_acceleration,
+                do_rotation, rotation_model, rotation, rotation_velocity, rotation_acceleration,
                 scale, mass, friction_coefficient, restitution,
                 gravity, wall,
                 color }={}) {
@@ -392,6 +396,8 @@ export class Thing {
 
     this.rotation_model = rotation_model !== undefined? rotation_model : vec3(0.0, 0.0, 0.0);
 
+    this.do_rotation = do_rotation !== undefined? do_rotation : true;
+
     this.rotation = rotation !== undefined? rotation : vec3(0.0, 0.0, 0.0);
     this.rotation_velocity = rotation_velocity !== undefined? rotation_velocity : vec3(0.0, 0.0, 0.0);
     this.rotation_acceleration = rotation_acceleration !== undefined? rotation_acceleration : vec3(0.0, 0.0, 0.0);
@@ -401,8 +407,8 @@ export class Thing {
     this.scale = scale !== undefined? scale : vec3(1.0, 1.0, 1.0);
     this.mass = mass !== undefined? mass : 1.0;  // arbitrary unit, mass is infinity if value is -1.0
 
-    this.friction_coefficient = friction_coefficient !== undefined? friction_coefficient : 0.03;
-    this.restitution = restitution !== undefined? restitution : 0.6;  // (inelastic) 0 <= restitution <= 1 (elastic)
+    this.friction_coefficient = friction_coefficient !== undefined? friction_coefficient : -0.05;
+    this.restitution = restitution !== undefined? restitution : 0.5;  // (inelastic) 0 <= restitution <= 1 (elastic)
 
     this.color = color !== undefined? color : hex_color("#aaaaaa");
 

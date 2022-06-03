@@ -10,7 +10,8 @@ import {defs, tiny} from './classes/common.js';
 import {Sandbox_Main} from "./scenes/sandbox_main.js";
 import {Sandbox_Shader} from "./scenes/sandbox_shader.js";
 import {Sandbox_Physics} from "./scenes/sandbox_physics.js";
-import {Cake_Physics } from './scenes/the_cake_is_a_lie.js';
+import {Cake_Physics} from './scenes/the_cake_is_a_lie.js';
+import {Study_Girl} from './scenes/study_girl.js';
 
 // Pull these names into this module's scope for convenience:
 const {
@@ -32,14 +33,15 @@ Object.assign(defs,
   {Sandbox_Main},
   {Sandbox_Shader},
   {Sandbox_Physics},
-  {Cake_Physics}
+  {Cake_Physics},
+  {Study_Girl}
 );
 
 // ******************** End extra step
 
 // (Can define Main_Scene's class here)
 
-const Main_Scene = Sandbox_Physics;//Sandbox_Physics;
+const Main_Scene = Study_Girl;//Sandbox_Physics;
 // const Additional_Scenes = [];
 
 export {Main_Scene, Canvas_Widget, Code_Widget, Text_Widget, defs}  // removed: Additional_Scenes
