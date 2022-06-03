@@ -8,8 +8,6 @@ import {
 } from "../classes/shaders.js";
 import {Model} from "../classes/shapes.js";
 
-"use strict";
-
 
 const {  // load common classes to the current scope
   Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene,
@@ -42,12 +40,22 @@ export class Sandbox_Physics extends Scene {
       teapot: new Model("../assets/teapot.obj"),
       miku: new Model("../assets/miku.obj"),
       desk: new Model("../assets/desk.obj"),
+      sg_hair: new Model("../assets/sg_hair.obj"),
+      sg_head: new Model("../assets/sg_head.obj"),
+      sg_eyes: new Model("../assets/sg_eyes.obj"),
+      sg_torso: new Model("../assets/sg_torso.obj"),
+      sg_forearms: new Model("../assets/sg_forearms.obj"),
+      sg_hands: new Model("../assets/sg_hands.obj"),
+      sg_skirt: new Model("../assets/sg_skirt.obj"),
+      sg_legs_top: new Model("../assets/sg_legs_top.obj"),
+      sg_legs_bottom: new Model("../assets/sg_legs_bottom.obj"),
+      study_girl: new Model("../assets/study_girl.obj"),
     };
 
     // load material definitions onto the GPU
     this.materials = {
       normal: new Material(new Shadow_Textured_Phong_Shader(1),
-        {ambient: 0.2, diffusivity: 0.8, specularity: 0.5, color_texture: null, light_depth_texture: null}
+        {ambient: 0.3, diffusivity: 0.8, specularity: 0.5, color_texture: null, light_depth_texture: null}
       ),
       work_in_progress: new Material(new Shadow_Textured_Phong_Shader(1), {
           ambient: 0.5, diffusivity: 0.5, specularity: 0.5,
@@ -66,6 +74,7 @@ export class Sandbox_Physics extends Scene {
     initialize_rotation_center(this.objects);
 
     this.camera_initial_position = Mat4.look_at(vec3(45, 25, 90), vec3(-5.5, -10.0, 0), vec3(0, 1, 0));
+    // this.camera_initial_position = Mat4.look_at(vec3(7.5, 2.5, 15.0), vec3(-1.0, 0, 0), vec3(0, 1, 0));
 
     this.bounding = false;
 
@@ -131,36 +140,37 @@ export class Sandbox_Physics extends Scene {
   initialize_objects() {
     let scales = [vec3(5.0, 3.0, 2.0), vec3(2.0, 10.0, 3.5), vec3(5.0, 2.0, 3.0), vec3(4.0, 8.0, 3.5)];
     this.objects = [
-      [
-        new Thing({
-          shape: this.shapes.cube, material: this.materials.normal,
-          position: vec3(-5.0, 4.0, 0.0), rotation_model: vec3(0.0, 0.0, -Math.PI / 6),
-          scale: scales[0], mass: get_mass(scales[0]),
-          color: color(...array_random(0.0, 1.0), 1.0),
-        }),
-        new Thing({
-          shape: this.shapes.sphere, material: this.materials.normal,
-          position: vec3(-2.0, 0.0, 0.0), rotation_model: vec3(0.0, 0.0, Math.PI / 6),
-          scale: scales[1], mass: get_mass(scales[1]),
-          color: color(...array_random(0.0, 1.0), 1.0),
-        }),
-      ],
-      [
-        new Thing({
-          shape: this.shapes.cube, material: this.materials.normal,
-          position: vec3(10.0, 12.0, 0.0), velocity: vec3(-10.0, -10.0, 0.0),
-          rotation_model: vec3(0.0, 0.0, -Math.PI / 6), rotation_velocity: vec3(0.0, 0.0, -2 * Math.PI),
-          scale: scales[2], mass: get_mass(scales[0]),
-          color: color(...array_random(0.0, 1.0), 1.0),
-        }),
-        new Thing({
-          shape: this.shapes.sphere, material: this.materials.normal,
-          position: vec3(13.0, 8.0, 0.0), velocity: vec3(-10.0, -10.0, 0.0),
-          rotation_model: vec3(0.0, 0.0, Math.PI / 6), rotation_velocity: vec3(0.0, 0.0, -2 * Math.PI),
-          scale: scales[3], mass: get_mass(scales[1]),
-          color: color(...array_random(0.0, 1.0), 1.0),
-        }),
-      ],
+      // [
+      //   new Thing({
+      //     shape: this.shapes.cube, material: this.materials.normal,
+      //     position: vec3(-5.0, 4.0, 0.0), rotation_model: vec3(0.0, 0.0, -Math.PI / 6),
+      //     scale: scales[0], mass: get_mass(scales[0]),
+      //     color: color(...array_random(0.0, 1.0), 1.0),
+      //   }),
+      //   new Thing({
+      //     shape: this.shapes.sphere, material: this.materials.normal,
+      //     position: vec3(-2.0, 0.0, 0.0), rotation_model: vec3(0.0, 0.0, Math.PI / 6),
+      //     scale: scales[1], mass: get_mass(scales[1]),
+      //     color: color(...array_random(0.0, 1.0), 1.0),
+      //   }),
+      // ],
+      // [
+      //   new Thing({
+      //     shape: this.shapes.cube, material: this.materials.normal,
+      //     position: vec3(10.0, 12.0, 0.0), velocity: vec3(-10.0, -10.0, 0.0),
+      //     rotation_model: vec3(0.0, 0.0, -Math.PI / 6), rotation_velocity: vec3(0.0, 0.0, -2 * Math.PI),
+      //     scale: scales[2], mass: get_mass(scales[0]),
+      //     color: color(...array_random(0.0, 1.0), 1.0),
+      //   }),
+      //   new Thing({
+      //     shape: this.shapes.sphere, material: this.materials.normal,
+      //     position: vec3(13.0, 8.0, 0.0), velocity: vec3(-10.0, -10.0, 0.0),
+      //     rotation_model: vec3(0.0, 0.0, Math.PI / 6), rotation_velocity: vec3(0.0, 0.0, -2 * Math.PI),
+      //     scale: scales[3], mass: get_mass(scales[1]),
+      //     color: color(...array_random(0.0, 1.0), 1.0),
+      //   }),
+      // ],
+      this.study_girl({position: vec3(5.0, 5.0, -5.0), scale: vec3(2.0, 2.0, 2.0)})
     ];
   }
 
@@ -212,6 +222,67 @@ export class Sandbox_Physics extends Scene {
     if (add_to_objects) {
       this.objects.push(this.walls);
     }
+  }
+
+  study_girl({position=vec3(0.0, 0.0, 0.0), scale=vec3(1.0, 1.0, 1.0)}) {
+    let scale_matrix = Mat4.scale(...scale);
+    let position_matrix = Mat4.translation(...position).times(scale_matrix);
+    return [
+      new Thing({
+        shape: this.shapes.sg_hair, material: this.materials.normal,
+        scale: scale_matrix.times(vec3(0.85, 0.85, 0.85).to4(0.0)).to3(),
+        position: position_matrix.times(vec3(0.0, 2.5, -0.2).to4(1.0)).to3(),
+        mass: 0.5, color: hex_color("#91311d"),
+      }),
+      new Thing({
+        shape: this.shapes.sg_head, material: this.materials.normal,
+        scale: scale_matrix.times(vec3(0.55, 0.55, 0.55).to4(0.0)).to3(),
+        position: position_matrix.times(vec3(0.0, 1.85, 0.0).to4(1.0)).to3(),
+        mass: 7.5, color: hex_color("#ffe5c5"),
+      }),
+      new Thing({
+        shape: this.shapes.sg_eyes, material: this.materials.normal,
+        scale: scale_matrix.times(vec3(0.38, 0.38, 0.38).to4(0.0)).to3(),
+        position: position_matrix.times(vec3(0.0, 2.1, 0.4).to4(1.0)).to3(),
+        mass: 0.5, color: hex_color("#1d1d1d"),
+      }),
+      new Thing({
+        shape: this.shapes.sg_torso, material: this.materials.normal,
+        scale: scale,
+        position: position_matrix.times(vec3(0.0, 0.0, 0.0).to4(1.0)).to3(),
+        mass: 20.0, color: hex_color("#196b63"),
+      }),
+      new Thing({
+        shape: this.shapes.sg_hands, material: this.materials.normal,
+        scale: scale_matrix.times(vec3(0.65, 0.65, 0.65).to4(0.0)).to3(),
+        position: position_matrix.times(vec3(0.0, 1.6, 0.7).to4(1.0)).to3(),
+        mass: 1.5, color: hex_color("#ffe5c5"),
+      }),
+      new Thing({
+        shape: this.shapes.sg_forearms, material: this.materials.normal,
+        scale: scale_matrix.times(vec3(1.25, 1.25, 1.25).to4(0.0)).to3(),
+        position: position_matrix.times(vec3(0.0, 0.35, 1.0).to4(1.0)).to3(),
+        mass: 5.0, color: hex_color("#196b63"),
+      }),
+      new Thing({
+        shape: this.shapes.sg_legs_top, material: this.materials.normal,
+        scale: scale_matrix.times(vec3(1.1, 1.1, 1.1).to4(0.0)).to3(),
+        position: position_matrix.times(vec3(0.0, -2.85, 2.2).to4(1.0)).to3(),
+        mass: 25.0, color: hex_color("#1d1d1d"),
+      }),
+      new Thing({
+        shape: this.shapes.sg_legs_bottom, material: this.materials.normal,
+        scale: scale_matrix.times(vec3(1.1, 1.1, 1.1).to4(0.0)).to3(),
+        position: position_matrix.times(vec3(0.0, -4.54, 3.16).to4(1.0)).to3(),
+        mass: 25.0, color: hex_color("#1d1d1d"),
+      }),
+      new Thing({
+        shape: this.shapes.sg_skirt, material: this.materials.normal,
+        scale: scale,
+        position: position_matrix.times(vec3(0.0, -2.1, 0.0).to4(1.0)).to3(),
+        mass: 0.5, color: hex_color("#d13f24"),
+      }),
+    ];
   }
 
   toggle_blender() {
