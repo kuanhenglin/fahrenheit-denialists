@@ -21,7 +21,8 @@ const HUGE = 999999999.9;
 const MAX_VELOCITY = 50.0;
 const MAX_ROTATION_VELOCITY = 10.0;
 
-const INERTIA_DIVIDER = 6.0;
+const INERTIA_DIVIDER = 3.0;
+const RESTITUTION = 0.5;
 
 class Bounding_Box extends defs.Cube {
   constructor(color_box=hex_color("#ffffff")) {
@@ -408,7 +409,8 @@ export class Thing {
     this.mass = mass !== undefined? mass : 1.0;  // arbitrary unit, mass is infinity if value is -1.0
 
     this.friction_coefficient = friction_coefficient !== undefined? friction_coefficient : -0.05;
-    this.restitution = restitution !== undefined? restitution : 0.5;  // (inelastic) 0 <= restitution <= 1 (elastic)
+    // (inelastic) 0 <= restitution <= 1 (elastic)
+    this.restitution = restitution !== undefined? restitution : RESTITUTION;
 
     this.color = color !== undefined? color : hex_color("#aaaaaa");
 
