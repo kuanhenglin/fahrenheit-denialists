@@ -7,7 +7,7 @@ const {  // load common classes to the current scope
 } = tiny;
 
 
-export const GRAVITY_MULTIPLIER = 3.0;  // ramp up gravity due to working on a much bigger scale
+export const GRAVITY_MULTIPLIER = 1.0;  // ramp up gravity due to working on a much bigger scale
 let GRAVITY = vec3(0.0, -9.81, 0.0).times(GRAVITY_MULTIPLIER);
 
 const ROTATION_WEIGHT = 0.40;
@@ -402,7 +402,7 @@ export class Thing {
     this.mass = mass !== undefined? mass : 1.0;  // arbitrary unit, mass is infinity if value is -1.0
 
     this.friction_coefficient = friction_coefficient !== undefined? friction_coefficient : 0.03;
-    this.restitution = restitution !== undefined? restitution : 0.7;  // (inelastic) 0 <= restitution <= 1 (elastic)
+    this.restitution = restitution !== undefined? restitution : 0.6;  // (inelastic) 0 <= restitution <= 1 (elastic)
 
     this.color = color !== undefined? color : hex_color("#aaaaaa");
 
