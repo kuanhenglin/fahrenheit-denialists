@@ -31,7 +31,7 @@ function get_mass(scale) {
 }
 
 
-export class Sandbox_Physics extends Scene {
+export class Study_Girl extends Scene {
   constructor() {
     // constructor(): populate initial values like Shapes and Materials
     super();
@@ -42,6 +42,16 @@ export class Sandbox_Physics extends Scene {
       cube: new defs.Cube(),
       teapot: new Model("../assets/teapot.obj"),
       desk: new Model("../assets/desk.obj"),
+      lamp: new Model("../assets/lamp.obj"),
+      notebook: new Model("../assets/notebook.obj"),
+      computer: new Model("../assets/laptop.obj"),
+      book_case: new Model("../assets/bookcase.obj"),
+      // desk
+      desk_top: new Model("../assets/desk_top.obj"),
+      desk_leg_left_front: new Model("../assets/desk_leg_left_front.obj"),
+      desk_leg_left_back: new Model("../assets/desk_leg_left_back.obj"),
+      desk_leg_right_front: new Model("../assets/desk_leg_right_front.obj"),
+      desk_leg_right_back: new Model("../assets/desk_leg_right_back.obj"),
       // study girl :D
       sg_hair: new Model("../assets/sg_hair.obj"),
       sg_head: new Model("../assets/sg_head.obj"),
@@ -57,24 +67,39 @@ export class Sandbox_Physics extends Scene {
     // load material definitions onto the GPU
     this.materials = {
       normal: new Material(new Shadow_Textured_Phong_Shader(1),
-        {ambient: 0.3, diffusivity: 0.8, specularity: 0.5, color_texture: null, light_depth_texture: null}
+        {ambient: 0.1, diffusivity: 0.8, specularity: 0.5, color_texture: null, light_depth_texture: null}
       ),
+      shiny: new Material(new Shadow_Textured_Phong_Shader(1),
+        {ambient: 0.05, diffusivity: 0.3, specularity: 1.0, color_texture: null, light_depth_texture: null}
+      ),
+      floor: new Material(new Shadow_Textured_Phong_Shader(1), {
+        ambient: 0.5, diffusivity: 0.5, specularity: 0.3,
+        color_texture: new Texture("../assets/floor.png"), light_depth_texture: null
+      }),
+      wall: new Material(new Shadow_Textured_Phong_Shader(1), {
+        ambient: 0.5, diffusivity: 0.5, specularity: 0.3,
+        color_texture: new Texture("../assets/wall.png"), light_depth_texture: null
+      }),
+      window: new Material(new Shadow_Textured_Phong_Shader(1), {
+        ambient: 0.5, diffusivity: 0.5, specularity: 0.3,
+        color_texture: new Texture("../assets/window.png"), light_depth_texture: null
+      }),
       work_in_progress: new Material(new Shadow_Textured_Phong_Shader(1), {
-          ambient: 0.5, diffusivity: 0.5, specularity: 0.5,
-          color_texture: new Texture("../assets/work_in_progress.png"), light_depth_texture: null
+        ambient: 0.6, diffusivity: 0.5, specularity: 0.3,
+        color_texture: new Texture("../assets/work_in_progress.png"), light_depth_texture: null
       }),
       light_source: new Material(new defs.Phong_Shader(),
-        {color: hex_color("#ffffff"), ambient: 1, diffusivity: 0.0, specularity: 0.0}
+        {color: hex_color("#ffffff"), ambient: 1.0, diffusivity: 0.0, specularity: 0.0}
       ),
     }
 
     this.walls = [];
-    this.box = {scale: vec3(30.0, 20.0, 30.0), thickness: vec3(2.0, 2.0, 2.0)};
+    this.box = {scale: vec3(30.0, 18.0, 30.0), thickness: vec3(2.0, 2.0, 2.0)};
 
     this.objects = [];
     this.initialize_scene();
 
-    this.camera_initial_position = Mat4.look_at(vec3(45, 25, 90), vec3(-5.5, -10.0, 0), vec3(0, 1, 0));
+    this.camera_initial_position = Mat4.look_at(vec3(25, 12.5, 50), vec3(-5.0, -5.0, 0), vec3(0, 1, 0));
     // this.camera_initial_position = Mat4.look_at(vec3(7.5, 2.5, 15.0), vec3(-1.0, 0, 0), vec3(0, 1, 0));
 
     this.bounding = false;
@@ -85,7 +110,7 @@ export class Sandbox_Physics extends Scene {
     this.blender = false;
 
     this.light_position = vec4(-0.75 * this.box.scale[0], 0.75 * this.box.scale[1], 0.75 * this.box.scale[2], 1.0);
-    this.light_color = hex_color("#ffffff");
+    this.light_color = hex_color("#ffdd55");
 
     this.init_ok = false;
   }
@@ -142,57 +167,64 @@ export class Sandbox_Physics extends Scene {
   }
 
   initialize_objects() {
-    let scales = [vec3(5.0, 3.0, 2.0), vec3(2.0, 10.0, 3.5), vec3(5.0, 2.0, 3.0), vec3(4.0, 8.0, 3.5)];
     this.objects = this.objects.concat([
+      [
+        new Thing({shape: this.shapes.lamp, material: this.materials.shiny,
+          position: vec3(-22.0, 1.5, -16.0),
+          rotation_model: vec3(0.0, -2 * Math.PI / 3, 0.0),
+          scale: vec3(1.5, 1.5, 1.5), mass: 0.75,
+          color: hex_color("#dd8822"),
+        })
+      ],
       this.study_girl({
         position: vec3(5.0, 5.0, -5.0),
         scale: vec3(1.5, 1.5, 1.5),
         rotation: vec3(0.0, -Math.PI / 2, 0.0)
       }),
-      // [
-      //   new Thing({
-      //     shape: this.shapes.cube, material: this.materials.normal,
-      //     position: vec3(-5.0, 4.0, 0.0), rotation_model: vec3(0.0, 0.0, -Math.PI / 6),
-      //     scale: scales[0], mass: get_mass(scales[0]),
-      //     color: color(...array_random(0.0, 1.0), 1.0),
-      //   }),
-      //   new Thing({
-      //     shape: this.shapes.sphere, material: this.materials.normal,
-      //     position: vec3(-2.0, 0.0, 0.0), rotation_model: vec3(0.0, 0.0, Math.PI / 6),
-      //     scale: scales[1], mass: get_mass(scales[1]),
-      //     color: color(...array_random(0.0, 1.0), 1.0),
-      //   }),
-      // ],
-      // [
-      //   new Thing({
-      //     shape: this.shapes.cube, material: this.materials.normal,
-      //     position: vec3(10.0, 12.0, 0.0), velocity: vec3(-10.0, -10.0, 0.0),
-      //     rotation_model: vec3(0.0, 0.0, -Math.PI / 6), rotation_velocity: vec3(0.0, 0.0, -2 * Math.PI),
-      //     scale: scales[2], mass: get_mass(scales[0]),
-      //     color: color(...array_random(0.0, 1.0), 1.0),
-      //   }),
-      //   new Thing({
-      //     shape: this.shapes.sphere, material: this.materials.normal,
-      //     position: vec3(13.0, 8.0, 0.0), velocity: vec3(-10.0, -10.0, 0.0),
-      //     rotation_model: vec3(0.0, 0.0, Math.PI / 6), rotation_velocity: vec3(0.0, 0.0, -2 * Math.PI),
-      //     scale: scales[3], mass: get_mass(scales[1]),
-      //     color: color(...array_random(0.0, 1.0), 1.0),
-      //   }),
-      // ],
+      this.desk({
+        position: vec3(-21.0, -9.5, -5.0), scale: vec3(1.5, 1.2, 1.5), rotation: vec3(0.0, Math.PI / 2, 0.0),
+        color: hex_color("#a85f22"),
+      }),
+      this.desk({
+        position: vec3(-9.0, -13.0, -5.0), scale: vec3(0.5, 0.7, 0.8), rotation: vec3(0.0, Math.PI / 2, 0.0),
+        color: hex_color("#555555"),
+      }),
+      [
+        new Thing({shape: this.shapes.book_case, material: this.materials.normal,
+          position: vec3(16.0, -2.3, -27.0),
+          scale: vec3(8.0, 9.5, 10.0), mass: 200.0,
+          color: hex_color("#a85f22"), do_rotation: false
+        })
+      ],
+      [
+        new Thing({shape: this.shapes.computer, material: this.materials.shiny,
+          position: vec3(-23.0, -3.0, -6.0),
+          rotation_model: vec3(0.0, Math.PI / 2, 0.0),
+          scale: vec3(2.5, 2.5, 2.5), mass: 1.5,
+          color: hex_color("#eeeeee"),
+        })
+      ],
+      [
+        new Thing({shape: this.shapes.notebook, material: this.materials.normal,
+          position: vec3(-20.0, -3.0, 2.0),
+          rotation_model: vec3(0.0, -Math.PI / 6, 0.0),
+          scale: vec3(1.0, 1.0, 1.0), mass: 5.0,
+          color: color(...array_random(0.0, 1.0), 1.0),
+        })
+      ],
     ]);
   }
 
   initialize_walls(scale, thickness, add_to_objects=true) {
     let offset = scale.plus(thickness);
-    let color = hex_color("#808080");
-    let material = this.materials.work_in_progress;
+    let color = hex_color("#303030");
+    let material = this.materials.normal;
 
     this.walls = [
       // floor
       new Thing({
-        shape: this.shapes.cube, material: material, mass: -1.0,
+        shape: this.shapes.cube, material: this.materials.floor, mass: -1.0,
         position: vec3(0.0, -offset[1], 0.0), scale: vec3(scale[0], thickness[1], scale[2]),
-        // rotation: vec3(0.0, 0.0, Math.PI / 8),
         gravity: vec3(0.0, 0.0, 0.0), wall: true, color: color,
       }),
       // ceiling
@@ -203,7 +235,7 @@ export class Sandbox_Physics extends Scene {
       }),
       // left
       new Thing({
-        shape: this.shapes.cube, material: material, mass: -1.0,
+        shape: this.shapes.cube, material: this.materials.wall, mass: -1.0,
         position: vec3(-offset[0], 0.0, 0.0), scale: vec3(thickness[0], scale[1], scale[2]),
         gravity: vec3(0.0, 0.0, 0.0), wall: true, color: color,
       }),
@@ -215,7 +247,7 @@ export class Sandbox_Physics extends Scene {
       }),
       // back
       new Thing({
-        shape: this.shapes.cube, material: material, mass: -1.0,
+        shape: this.shapes.cube, material: this.materials.window, mass: -1.0,
         position: vec3(0.0, 0.0, -offset[2]), scale: vec3(scale[0], scale[1], thickness[2]),
         gravity: vec3(0.0, 0.0, 0.0), wall: true, color: color,
       }),
@@ -289,6 +321,48 @@ export class Sandbox_Physics extends Scene {
         scale: scale,
         position: position_matrix.times(vec3(0.0, -2.1, 0.0).to4(1.0)).to3(),
         rotation: rotation, mass: 0.5, color: hex_color("#d13f24"),
+      }),
+    ];
+  }
+
+  desk({
+   position=vec3(0.0, 0.0, 0.0), scale=vec3(1.0, 1.0, 1.0), rotation=vec3(0.0, 0.0, 0.0),
+   color=hex_color("#aaaaaa"), do_rotation=false
+  }) {
+    let scale_matrix = Mat4.scale(...scale);
+    let position_matrix = Mat4.translation(...position).times(scale_matrix);
+    let offset = [7.0, 3.0];
+    let restitution = 0.6;
+    return [
+      new Thing({
+        shape: this.shapes.desk_leg_left_front, material: this.materials.normal,
+        scale: scale_matrix.times(vec3(5.0, 5.0, 5.0).to4(0.0)).to3(),
+        position: position_matrix.times(vec3(-offset[0], -3.0, offset[1]).to4(1.0)).to3(),
+        rotation: rotation, mass: 2.0, color: color, restitution: restitution, do_rotation: do_rotation
+      }),
+      new Thing({
+        shape: this.shapes.desk_leg_left_back, material: this.materials.normal,
+        scale: scale_matrix.times(vec3(5.0, 5.0, 5.0).to4(0.0)).to3(),
+        position: position_matrix.times(vec3(-offset[0], -3.0, -offset[1] - 2.5).to4(1.0)).to3(),
+        rotation: rotation, mass: 2.0, color: color, restitution: restitution, do_rotation: do_rotation
+      }),
+      new Thing({
+        shape: this.shapes.desk_leg_right_front, material: this.materials.normal,
+        scale: scale_matrix.times(vec3(5.0, 5.0, 5.0).to4(0.0)).to3(),
+        position: position_matrix.times(vec3(offset[0] + 1.0, -3.0, offset[1]).to4(1.0)).to3(),
+        rotation: rotation, mass: 2.0, color: color, restitution: restitution, do_rotation: do_rotation
+      }),
+      new Thing({
+        shape: this.shapes.desk_leg_right_back, material: this.materials.normal,
+        scale: scale_matrix.times(vec3(5.0, 5.0, 5.0).to4(0.0)).to3(),
+        position: position_matrix.times(vec3(offset[0] + 1.0, -3.0, -offset[1] - 2.5).to4(1.0)).to3(),
+        rotation: rotation, mass: 2.0, color: color, restitution: restitution, do_rotation: do_rotation
+      }),
+      new Thing({
+        shape: this.shapes.desk_top, material: this.materials.normal,
+        scale: scale_matrix.times(vec3(8.0, 8.0, 8.0).to4(0.0)).to3(),
+        position: position_matrix.times(vec3(0.0, 4.0, 0.0).to4(1.0)).to3(),
+        rotation: rotation, mass: 3.0, color: color, restitution: 0.6, do_rotation: do_rotation
       }),
     ];
   }
@@ -395,7 +469,7 @@ export class Sandbox_Physics extends Scene {
       this.shapes.sphere.draw(
         context, program_state,
         Mat4.translation(this.light_position[0], this.light_position[1], this.light_position[2])
-          .times(Mat4.scale(3, 3, 3)),
+          .times(Mat4.scale(1.0, 1.0, 1.0)),
         this.materials.light_source.override({color: this.light_color}));
     }
 
@@ -437,8 +511,13 @@ export class Sandbox_Physics extends Scene {
     const delta_time = this.pause? 0.0 : program_state.animation_delta_time / 1000 * DELTA_MULTIPLIER;
     this.time_elapsed += delta_time;
 
+    let lamp_object = this.objects[1][0];
+    this.light_position = (Mat4.rotation(
+      lamp_object.rotation.norm(), ...(lamp_object.rotation.norm() === 0.0? [1.0, 0.0, 0.0] : lamp_object.rotation)
+    ).times(vec4(1.5, 2.7, 0.7, 0.0))).plus(this.objects[1][0].position.to4(1.0));
+
     // light source(s) (phong shader takes maximum of 2 sources)
-    program_state.lights = [new Light(this.light_position, this.light_color, 10000)];  // position, color, size
+    program_state.lights = [new Light(this.light_position, this.light_color, 10 ** 9)];  // position, color, size
 
     if (!this.pause) {
       collision(this.objects);  // collision detection and resolution
@@ -448,8 +527,8 @@ export class Sandbox_Physics extends Scene {
 
     // This is a rough target of the light.
     // Although the light is point light, we need a target to set the POV of the light
-    this.light_view_target = vec4(0, 0, 0, 1);
-    this.light_field_of_view = 130 * Math.PI / 180; // 130 degree
+    this.light_view_target = vec4(0.0, 0.0, 0.0, 1.0);
+    this.light_field_of_view = 130 * Math.PI / 180; // 130 degrees
 
     // Step 1: set the perspective and camera to the POV of light
     const light_view_mat = Mat4.look_at(
