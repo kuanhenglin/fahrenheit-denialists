@@ -2,21 +2,21 @@
 
 *A `README` file for how to run the code and what to expect.*
 
-## The Fahrenheit Denialists
+## Team Name: The Fahrenheit Denialists
 
-Yes, that is our team name.
-
-**Jordan Lin:** Physics engine and shadowing <br>
-**Joice He:** Modelling and art <br>
-**Aidan Cini:** Scene setup
+**Jordan Lin:** Physics engine and Shadowing <br>
+**Joice He:** Modelling, Art, Texturing <br>
+**Aidan Cini:** Scene Setup
 
 ## Running the Code
 
 Clone this repository to your local machine.
 
-For Windows, run/double-click the `host.bat` file in the main directory. For MacOS, run the `host.command` file. Alternatively, execute `python server.py` or `python3 server.py` (should work for both Windows and MacOS). If you are using Linux, you can probably figure this out yourself.
+For Windows: run/double-click the `host.bat` file in the main directory. 
+For MacOS: run the `host.command` file. Alternatively, execute `python3 server.py` or `python3 server.py` (should work for both Windows and MacOS). 
+If you are using Linux, you can probably figure this out yourself.
 
-Then, go to `localhost:8000` in your browser and have fun :D
+Then, type `localhost:8000` into your browser, hit enter and have fun :D
 
 We use `tiny-graphics.js`, which is like `three.js` but worse.
 
@@ -24,7 +24,7 @@ We use `tiny-graphics.js`, which is like `three.js` but worse.
 
 ## What to Expect
 
-Our project is a 3D graphics demo of the famous study girl from "[lofi hip hop radio - beats to relax/study to](https://youtu.be/5qap5aO4i9A)." When you start up the scene, you will see the study girl sitting in her chair just vibing to the chill beats. On her desk is a laptop, a notebook, and a study lamp. To her right is a window looking out to the night sky with a purring cat on the windowsill. We hope that our scene with give you the motivation to get though *finals*! Everything seems calm and peaceful until you unpause and unleash the underlying Physics engine that Jordan created.
+Our project is a 3D sandbox scene of the widely beloved study girl from the 24/7 Youtube radio "[lofi hip hop radio - beats to relax/study to](https://youtu.be/5qap5aO4i9A)." When you start up the scene, you will see the study girl sitting in her chair just vibing to the chill beats. On her desk is a laptop, a notebook, and a study lamp. To her right is a window looking out to the night sky with a purring cat on the windowsill. We hope that our scene with give you the motivation to get though *finals*! Everything seems calm and peaceful until you unpause and unleash the underlying Physics engine that Jordan created.
 
 The following is a list of features of our little demo.
 
@@ -36,7 +36,7 @@ Initially the scene is static, meaning that time is completely stopped. Entering
 
 ![Bounding boxes image 1 :O](./docs/screenshot_bounding_1.png)
 
-Entering `Ctrl + b` turns on the bounding boxes of the objects, allowing the user to see how the objects interact via collisions. All the bounding boxes are oriented bounding boxes, that is, rectangular prisms of arbitrary size and 3D rotation. It is the most fun to watch the bounding boxes as the objects go flying around after unpausing.
+Entering `Ctrl + b` turns on the bounding boxes of the objects, allowing the user to see how the objects collide. All bounding boxes are oriented bounding boxes ( rectangular prisms of arbitrary size and 3D rotation.) It is the most fun to watch the bounding boxes as the objects go flying around after unpausing.
 
 These bounding boxes act as the collision/hit boxes in our Physics engine.
 
@@ -44,7 +44,7 @@ These bounding boxes act as the collision/hit boxes in our Physics engine.
 
 ![Blender image 1 D:](./docs/screenshot_blender_1.png)
 
-Entering `Ctrp + d` spawns a massive rectangular prism that spins around the floor pushing everything in the scene around in the most chaotic way&mdash;we call this a blender. The blender is not for the feint of heart; if you care about the study girl’s safety then please **DO NOT USE**.
+Entering `Ctrp + d` spawns a massive rectangular prism that spins around the floor and pushes everything in the scene around in the most chaotic way&mdash;we call this a blender. The blender is not for the faint of heart; if you care about the study girl’s safety then please **DO NOT USE**.
 
 ### Shoot Object (`Ctrl + e`)
 
