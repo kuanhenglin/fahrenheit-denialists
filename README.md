@@ -20,6 +20,8 @@ Then, go to `localhost:8000` in your browser and have fun :D
 
 We use `tiny-graphics.js`, which is like `three.js` but worse.
 
+![Study girl image 1 :)](./docs/screenshot_scene_1.png)
+
 ## What to Expect
 
 Our project is a 3D graphics demo of the famous study girl from "[lofi hip hop radio - beats to relax/study to](https://youtu.be/5qap5aO4i9A)." When you start up the scene, you will see the study girl sitting in her chair just vibing to the chill beats. On her desk is a laptop, a notebook, and a study lamp. To her right is a window looking out to the night sky with a purring cat on the windowsill. We hope that our scene with give you the motivation to get though *finals*! Everything seems calm and peaceful until you unpause and unleash the underlying Physics engine that Jordan created.
@@ -32,11 +34,15 @@ Initially the scene is static, meaning that time is completely stopped. Entering
 
 ### Toggle Bounding Boxes (`Ctrl + b`)
 
+![Bounding boxes image 1 :O](./docs/screenshot_bounding_1.png)
+
 Entering `Ctrl + b` turns on the bounding boxes of the objects, allowing the user to see how the objects interact via collisions. All the bounding boxes are oriented bounding boxes, that is, rectangular prisms of arbitrary size and 3D rotation. It is the most fun to watch the bounding boxes as the objects go flying around after unpausing.
 
 These bounding boxes act as the collision/hit boxes in our Physics engine.
 
 ### Toggle Blender (`Ctrl + d`)
+
+![Blender image 1 D:](./docs/screenshot_blender_1.png)
 
 Entering `Ctrp + d` spawns a massive rectangular prism that spins around the floor pushing everything in the scene around in the most chaotic way&mdash;we call this a blender. The blender is not for the feint of heart; if you care about the study girl’s safety then please **DO NOT USE**.
 
@@ -45,6 +51,8 @@ Entering `Ctrp + d` spawns a massive rectangular prism that spins around the flo
 Entering `Ctrl + e` spawns ellipsoidal objects into the scene at roughly random positions and velocities (but all generally pointed towards the girl). When paused, this is not too exciting as the objects just stay static in the scene, but unpause and you can watch all the new objects fly around the scene.
 
 ### Angular Velocity and Impulse (On `Ctrl + 6`, Off `Ctrl + 7`)
+
+![Angular velocity and impulse image 1 8D](./docs/screenshot_angular_1.png)
 
 When angular velocity and impulse is enabled with `Ctrl + 6`, the Physics engine enables angular collision resolution and collisions now affect the rotation and angular velocity of objects. Now, this is not particularly stable, because gravity currently only works on the center-of-mass of objects/object groups instead of all parts of the object. Something something snowballing, and chaos ensues.
 
@@ -56,15 +64,23 @@ Entering `Ctrl + i` reinitializes the scene to its original state, which is usef
 
 ### Ungroup objects (`Ctrl + u`)
 
+Without Hitboxes  |  With Hitboxes
+:---:|:---:
+![Ungrouped objects, without hitboxes](./docs/screenshot_ungroup_1.png)  |  ![Ungrouped objects, with hitboxes](./docs/screenshot_ungroup_2.png)
+
 Do you want to see the study girl break into pieces? If so, this is the feature for you. Since the study girl is a very complicated object to model with complex collision boxes, we modeled her body by breaking it into many different simpler shapes. This button ungroups the individual components of grouped objects (e.g., study girl, desk, chair, etc.) and allows them to move and collide freely.
 
 ### Gravity
+
+![Gravity image 1 8O](./docs/screenshot_gravity_1.png)
 
 You can change gravity to any one of the coordinate axes. Simply click the button that displays the direction you want gravity to go and it will follow. `none` causes the objects to float about, `+x` makes the objects fly backward, `-x` pushes the objects toward the brick wall, `+y` makes the objects fly to the ceiling, `-y` is normal gravity pushing objects to the floor, `+z` makes the objects come toward the camera, and `-z` makes the objects fly towards the window wall.
 
 ### Movement
 
 As per a feature which comes with `tiny-graphics.js`, you can move around the scene with `w`, `a`, `s` and `d`; you can also move up with `Space` and move down with `z`.
+
+![Study girl image 2 :D](./docs/screenshot_scene_2.png)
 
 Have fun exploring our demo!
 
